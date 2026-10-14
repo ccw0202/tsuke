@@ -48,7 +48,7 @@ Script Properties are the only place the spreadsheet id and calendar id are stor
 ## Web app
 
 - `appsscript.json` sets `webapp.executeAs` to `USER_DEPLOYING` and `webapp.access` to `MYSELF`.
-- `doGet` returns the static file `src/Index`. The HTML file has no Apps Script scriptlets (`<?= ?>` or `<?!= ?>`), so nothing from the server is interpolated into the document.
+- `doGet` returns the static file `src/Index`. The HTML file has no Apps Script scriptlets (`<?= ?>` or `<?!= ?>`), so nothing from the server is interpolated into the document. HtmlService ignores a viewport meta tag in that file, so `doGet` adds `width=device-width, initial-scale=1` with `addMetaTag`. The copy in the file is only for the local preview.
 - Ledger fields are inserted in the browser with `textContent` and `createElement`. The page does not use `innerHTML`, `document.write`, or `eval`.
 - A manifest URL is attached only when it matches `https://script.google.com/macros/s/<id>/exec?page=manifest`. The `page` query parameter is accepted only when it is exactly `manifest`. Other query parameters are ignored.
 - `HtmlService` is served with `XFrameOptionsMode.DEFAULT`, which sends `X-Frame-Options: SAMEORIGIN`, to reduce clickjacking. The page also sends `noindex, nofollow`.

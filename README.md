@@ -145,7 +145,7 @@ Node 18 or newer. The tests do not call Google. They cover the parser, payment p
 
    The sidebar reads the Script Properties entry `setupTsuke` stored. Test deployments run the saved HEAD, so a later `clasp push` updates the card without a new versioned deployment. If the side panel says the add-on is not authorized to read the ledger, the Calendar install is still on an older consent. Open the script's Project Settings, revoke access, remove the test deployment, install it again, and accept the consent screen. A failed homepage writes the exception into the Apps Script execution log and does not print that text on the card.
 
-8. Add the web app to your home screen from the browser's share or menu sheet (Safari: Share → Add to Home Screen; Chrome: Install app or Add to Home screen). The page is phone-sized, sets a manifest and the usual mobile web app tags, and does not load third-party fonts or scripts. Apps Script cannot host a service worker, so the icon opens the live page. It does not work offline.
+8. Add the web app to your home screen from the browser's share or menu sheet (Safari: Share → Add to Home Screen; Chrome: Install app or Add to Home screen). The page is phone-sized, sets a manifest and the usual mobile web app tags, and does not load third-party fonts or scripts. Apps Script ignores a viewport tag written inside `src/Index.html`, so `doGet` calls `addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')`. Without that call the phone lays the page out like a desktop page and then shrinks it. Apps Script cannot host a service worker, so the icon opens the live page. It does not work offline.
 
 Re-run `setupTsuke` if you need to repair a missing sheet or formula. It will not overwrite payment methods, categories, or entries you already edited. `refreshMonthlyChart` rewrites the monthly formulas and replaces the chart.
 
@@ -244,7 +244,7 @@ ChatGPT 20 USD cube
 4. 打開「付款方式」，把範例卡片名稱改成你的。
 5. 部署網頁應用程式時，執行身分選「我」，存取權限選「只有我」。不要選任何人，也不要選匿名。
 6. 日曆外掛用「測試部署」安裝到自己的 Calendar，從側欄記帳。側欄讀的是 `setupTsuke` 寫進指令碼屬性的同一份帳本 id。若側欄說尚未取得帳本授權，請到專案設定解除授權，移除測試部署後再安裝一次並重新同意。執行記錄裡才有實際錯誤，卡片上不會印出例外內容。
-7. 手機瀏覽器開啟網頁應用程式網址，用「加入主畫面」。這是主畫面捷徑，沒有離線功能。
+7. 手機瀏覽器開啟網頁應用程式網址，用「加入主畫面」。這是主畫面捷徑，沒有離線功能。手機上的 viewport 是 `doGet` 用 `addMetaTag` 設的；只改 HTML 裡的 meta 不會生效，頁面會被縮成桌面版。
 
 設定值、詞彙和部署細節的英文說明在上面。威脅模型和範圍說明在 [SECURITY.md](SECURITY.md)。
 

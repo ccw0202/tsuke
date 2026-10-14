@@ -131,6 +131,19 @@ test('the calendar homepage uses the TextButtonStyle enum', () => {
   assert.equal(readme.includes('newTextButtonStyle'), false);
 });
 
+test('the phone viewport is set by doGet and the page keeps large tap targets', () => {
+  const web = fs.readFileSync('src/WebApp.js', 'utf8');
+  assert.match(web, /addMetaTag\(\s*'viewport'\s*,\s*'width=device-width, initial-scale=1, viewport-fit=cover'\s*\)/);
+  const html = fs.readFileSync('src/Index.html', 'utf8');
+  assert.match(html, /name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/);
+  assert.match(html, /safe-area-inset-top/);
+  assert.match(html, /safe-area-inset-right/);
+  assert.match(html, /safe-area-inset-bottom/);
+  assert.match(html, /safe-area-inset-left/);
+  assert.match(html, /min-height:\s*3\.25rem/);
+  assert.match(html, /font-size:\s*1\.375rem/);
+});
+
 test('future sheets keep payment and account link columns', () => {
   assert.equal(schema.FUTURE_SHEETS.cards.headers.includes('卡片代碼'), true);
   assert.equal(schema.FUTURE_SHEETS.accounts.headers.includes('帳戶代碼'), true);

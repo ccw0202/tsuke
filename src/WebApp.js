@@ -6,8 +6,11 @@
 function doGet(e) {
   var page = e && e.parameter ? String(e.parameter.page || '') : '';
   if (page === 'manifest') return manifestResponse_();
+  // HtmlService ignores <meta name="viewport"> inside the file, so a phone
+  // lays the page out at desktop width. addMetaTag is what the browser uses.
   return HtmlService.createHtmlOutputFromFile('src/Index')
     .setTitle('Tsuke')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT)
     .setSandboxMode(HtmlService.SandboxMode.IFRAME);
 }
