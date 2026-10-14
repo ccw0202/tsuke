@@ -32,7 +32,10 @@
       "layoutProperties": {
         "primaryColor": "#9c3418",
         "secondaryColor": "#f4f0e6"
-      }
+      },
+      "openLinkUrlPrefixes": [
+        "https://docs.google.com/spreadsheets/"
+      ]
     },
     "calendar": {
       "homepageTrigger": {

@@ -143,6 +143,8 @@ Node 18 or newer. The tests do not call Google. They cover the parser, payment p
 
 7. Install the Calendar sidebar: **Deploy → Test deployments → Google Workspace add-on**, install it for your account, then open Google Calendar and the side panel. The homepage is quick entry, search across every year in 帳目, and a per-tag list with an approximate TWD total.
 
+   The sidebar reads the Script Properties entry `setupTsuke` stored. Test deployments run the saved HEAD, so a later `clasp push` updates the card without a new versioned deployment. If the side panel says the add-on is not authorized to read the ledger, the Calendar install is still on an older consent. Open the script's Project Settings, revoke access, remove the test deployment, install it again, and accept the consent screen. A failed homepage writes the exception into the Apps Script execution log and does not print that text on the card.
+
 8. Add the web app to your home screen from the browser's share or menu sheet (Safari: Share → Add to Home Screen; Chrome: Install app or Add to Home screen). The page is phone-sized, sets a manifest and the usual mobile web app tags, and does not load third-party fonts or scripts. Apps Script cannot host a service worker, so the icon opens the live page. It does not work offline.
 
 Re-run `setupTsuke` if you need to repair a missing sheet or formula. It will not overwrite payment methods, categories, or entries you already edited. `refreshMonthlyChart` rewrites the monthly formulas and replaces the chart.
@@ -183,6 +185,10 @@ Phase 3:
 帳目.付款代碼 points at 付款方式.代碼. That row already has 帳戶代碼 and 卡片代碼. Those two columns are copied onto each expense as well, so a later rename of a button does not detach old rows. v1 does not create the phase 2 or phase 3 sheets and does not install time-driven triggers.
 
 Out of scope for now: Notion CSV import, and chat entry from a Grok bot. Both should call `addEntry` rather than write the sheet themselves.
+
+### Proposed: a hideable expense calendar
+
+Not built. v1 puts only `日誌` lines on 「Tsuke 日誌」. Expense rows stay in the sheet. A later optional setting, off by default, could write one all-day event per day to a second script-created calendar, 「Tsuke 帳目」. The event would list that day's expenses and an approximate TWD total, and `addEntry` would update the same day's event instead of adding one event per expense. It would be a different calendar from the diary, so it can be hidden in Google Calendar without hiding 「Tsuke 日誌」. That would still use `calendar.app.created`. No new scope.
 
 ## 繁體中文
 
@@ -237,7 +243,7 @@ ChatGPT 20 USD cube
 3. 在編輯器執行 `setupTsuke` 並授權。會在你的雲端硬碟建立「Tsuke 帳本」。回傳的試算表網址只留給自己，不要貼到公開的地方。若訊息說進階服務尚未啟用，先做上面的還原與 `clasp push`。
 4. 打開「付款方式」，把範例卡片名稱改成你的。
 5. 部署網頁應用程式時，執行身分選「我」，存取權限選「只有我」。不要選任何人，也不要選匿名。
-6. 日曆外掛用「測試部署」安裝到自己的 Calendar，從側欄記帳。
+6. 日曆外掛用「測試部署」安裝到自己的 Calendar，從側欄記帳。側欄讀的是 `setupTsuke` 寫進指令碼屬性的同一份帳本 id。若側欄說尚未取得帳本授權，請到專案設定解除授權，移除測試部署後再安裝一次並重新同意。執行記錄裡才有實際錯誤，卡片上不會印出例外內容。
 7. 手機瀏覽器開啟網頁應用程式網址，用「加入主畫面」。這是主畫面捷徑，沒有離線功能。
 
 設定值、詞彙和部署細節的英文說明在上面。威脅模型和範圍說明在 [SECURITY.md](SECURITY.md)。
@@ -249,6 +255,8 @@ ChatGPT 20 USD cube
 不會從 Notion 匯入，也沒有 Grok 聊天記帳。之後若要加，請走 `addEntry`，不要另外寫一條進試算表的路。
 
 第二階段會各自一張表：帳戶與每月 1 日資產快照（銀行、交易所、台股、美股，多幣別換算台幣與趨勢圖）、公益（項目、平台、付款方式、點數或現金、年度合計）、債務（例如學貸：本金、利率、起迄、月付、扣款帳戶，扣款前提醒補錢）、訂閱（月繳或年繳、扣款日、自動記一筆、提醒）、收入（薪資、接案、其他，月淨額）。第三階段是卡片權益表，依消費建議要用哪張卡。帳目上的付款代碼、帳戶代碼、卡片代碼就是留給這些表接合的鍵。
+
+另外考慮、但還沒做：可選的「Tsuke 帳目」日曆。跟「Tsuke 日誌」分開，每天一筆全日事件，內容是當天的支出和約當台幣合計，可以在 Google 日曆裡單獨隱藏。預設關閉。不會一筆帳一個事件。
 
 ## License
 
