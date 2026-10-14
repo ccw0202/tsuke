@@ -116,10 +116,32 @@ function entriesFromRows(rows) {
       note: String(row[11] || ''),
       merchantKey: String(row[12] || ''),
       time: clockFromCell_(row[14]),
-      eventId: eventIdFromCell_(row[15])
+      eventId: eventIdFromCell_(row[15]),
+      status: entryStatusFromCell_(row[16]),
+      deleted: isDeletedEntryStatus_(row[16])
     });
   });
   return out;
+}
+
+function activeEntries_(entries) {
+  return (entries || []).filter(function (entry) {
+    return entry && entry.deleted !== true;
+  });
+}
+
+function entryStatusFromCell_(value) {
+  return String(value == null ? '' : value).replace(/^'/, '').trim();
+}
+
+function isDeletedEntryStatus_(value) {
+  return entryStatusFromCell_(value) === deletedStatusMark_();
+}
+
+function deletedStatusMark_() {
+  if (typeof ENTRY_STATUS_DELETED !== 'undefined') return ENTRY_STATUS_DELETED;
+  if (typeof module !== 'undefined' && module.exports) return require('./Schema.js').ENTRY_STATUS_DELETED;
+  return '已刪除';
 }
 
 function clockFromCell_(value) {
@@ -212,6 +234,7 @@ if (typeof module !== 'undefined' && module.exports) {
     summarizeTag: summarizeTag,
     tagsFromRows: tagsFromRows,
     memoryFromRows: memoryFromRows,
-    entriesFromRows: entriesFromRows
+    entriesFromRows: entriesFromRows,
+    activeEntries_: activeEntries_
   };
 }

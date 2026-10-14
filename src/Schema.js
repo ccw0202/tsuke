@@ -56,7 +56,8 @@ var ENTRY_HEADERS = [
   '項目鍵',
   '建立時間',
   '時間',
-  '日曆事件'
+  '日曆事件',
+  '狀態'
 ];
 
 var ENTRY_COL = {
@@ -75,8 +76,11 @@ var ENTRY_COL = {
   MERCHANT_KEY: 13,
   CREATED_AT: 14,
   TIME: 15,
-  EVENT_ID: 16
+  EVENT_ID: 16,
+  STATUS: 17
 };
+
+var ENTRY_STATUS_DELETED = '已刪除';
 
 var PAYMENT_HEADERS = ['代碼', '名稱', '排序', '啟用', '類型', '帳戶代碼', '卡片代碼', '別名'];
 var CATEGORY_HEADERS = ['分類', '關鍵字', '排序'];
@@ -185,7 +189,7 @@ var GUIDE_LINES = [
   ['分類會依「分類」表的關鍵字猜測，猜不到就歸在日常。'],
   ['標籤：在「標籤」表填名稱與起迄日期（含首尾）。該區間的帳會自動帶上標籤。'],
   ['日誌：以「日誌」開頭的句子，或網頁「日誌」分頁的文字，會變成「Tsuke 日誌」日曆上的全日事件，不會寫進帳目。'],
-  ['花費：每一筆帳會在「Tsuke 花費」日曆建一個事件。這本日曆和主日曆、日誌日曆都分開，可以單獨隱藏。設定裡把「花費日曆」改成 FALSE 就停止。'],
+  ['花費：每一筆帳會在「Tsuke 花費」日曆建一個事件。在那本日曆刪掉事件後，這一列的「狀態」會變成已刪除，合計會略過它。把「狀態」清掉就能還原，再執行 syncSpendCalendar 會把事件加回去。這本日曆和主日曆、日誌日曆都分開，可以單獨隱藏。設定裡把「花費日曆」改成 FALSE 就停止，也不會再改帳本。'],
   ['活動：網頁「預訂活動」會寫進「Tsuke 活動」日曆，不會寫進主要日曆，也不會進帳目。可以在 Google 日曆裡隱藏它。'],
   ['外幣的「約當台幣」用試算表裡的 GOOGLEFINANCE 估算，會隨匯率更新。'],
   ['請不要把網頁應用程式公開部署，也不要分享這個試算表給不信任的人。']
@@ -210,6 +214,7 @@ if (typeof module !== 'undefined' && module.exports) {
     DEFAULT_SETTINGS: DEFAULT_SETTINGS,
     ENTRY_HEADERS: ENTRY_HEADERS,
     ENTRY_COL: ENTRY_COL,
+    ENTRY_STATUS_DELETED: ENTRY_STATUS_DELETED,
     PAYMENT_HEADERS: PAYMENT_HEADERS,
     CATEGORY_HEADERS: CATEGORY_HEADERS,
     TAG_HEADERS: TAG_HEADERS,

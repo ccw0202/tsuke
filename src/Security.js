@@ -103,7 +103,8 @@ function buildEntryRow(fields) {
     guardSheetText(input.merchantKey, 80),
     input.createdAt,
     guardSheetText(clock, 8),
-    guardSheetText(eventId, 140)
+    guardSheetText(eventId, 140),
+    ''
   ];
 }
 
@@ -119,6 +120,7 @@ function formulaSchema_() {
       ENTRY_COL: ENTRY_COL,
       SHEET_NAMES: SHEET_NAMES,
       CATEGORY_NAMES: CATEGORY_NAMES,
+      ENTRY_STATUS_DELETED: ENTRY_STATUS_DELETED,
       columnLetter_: columnLetter_
     };
   }
@@ -131,6 +133,12 @@ function assertSafeCategoryName_(name) {
   }
 }
 
+function assertSafeStatus_(status) {
+  if (!/^[\u4e00-\u9fff]{1,20}$/.test(String(status || ''))) {
+    throw userFacingError_('狀態無法寫進公式');
+  }
+}
+
 function monthlySheetFormulas() {
   var schema = formulaSchema_();
   var entry = schema.SHEET_NAMES.ENTRIES;
@@ -138,19 +146,22 @@ function monthlySheetFormulas() {
   var nameCol = schema.columnLetter_(schema.ENTRY_COL.NAME);
   var twdCol = schema.columnLetter_(schema.ENTRY_COL.TWD);
   var categoryCol = schema.columnLetter_(schema.ENTRY_COL.CATEGORY);
+  assertSafeStatus_(schema.ENTRY_STATUS_DELETED);
+  var statusCol = schema.columnLetter_(schema.ENTRY_COL.STATUS);
   var monthExpr = 'TEXT(' + entry + '!' + dateCol + '2:' + dateCol + ',"yyyy-mm")';
+  var alive = entry + '!' + statusCol + '2:' + statusCol + '<>"' + schema.ENTRY_STATUS_DELETED + '"';
   var headers = ['月份'].concat(schema.CATEGORY_NAMES, ['合計', '筆數']);
   var categories = schema.CATEGORY_NAMES.map(function (name) {
     assertSafeCategoryName_(name);
     return '=MAP(A4:A200,LAMBDA(m,IF(m="",,IFERROR(SUM(FILTER(' + entry + '!' + twdCol + '2:' + twdCol +
-      ',' + monthExpr + '=m,' + entry + '!' + categoryCol + '2:' + categoryCol + '="' + name + '")),0))))';
+      ',' + monthExpr + '=m,' + entry + '!' + categoryCol + '2:' + categoryCol + '="' + name + '",' + alive + ')),0))))';
   });
   return {
     headers: headers,
-    months: '=IFERROR(SORT(UNIQUE(FILTER(' + monthExpr + ',' + entry + '!' + dateCol + '2:' + dateCol + '<>"")),1,FALSE),"")',
+    months: '=IFERROR(SORT(UNIQUE(FILTER(' + monthExpr + ',' + entry + '!' + dateCol + '2:' + dateCol + '<>"",' + alive + ')),1,FALSE),"")',
     categories: categories,
-    total: '=MAP(A4:A200,LAMBDA(m,IF(m="",,IFERROR(SUM(FILTER(' + entry + '!' + twdCol + '2:' + twdCol + ',' + monthExpr + '=m)),0))))',
-    count: '=MAP(A4:A200,LAMBDA(m,IF(m="",,IFERROR(COUNTA(FILTER(' + entry + '!' + nameCol + '2:' + nameCol + ',' + monthExpr + '=m)),0))))'
+    total: '=MAP(A4:A200,LAMBDA(m,IF(m="",,IFERROR(SUM(FILTER(' + entry + '!' + twdCol + '2:' + twdCol + ',' + monthExpr + '=m,' + alive + ')),0))))',
+    count: '=MAP(A4:A200,LAMBDA(m,IF(m="",,IFERROR(COUNTA(FILTER(' + entry + '!' + nameCol + '2:' + nameCol + ',' + monthExpr + '=m,' + alive + ')),0))))'
   };
 }
 
@@ -160,10 +171,13 @@ function tagTotalFormulas() {
   var nameCol = schema.columnLetter_(schema.ENTRY_COL.NAME);
   var twdCol = schema.columnLetter_(schema.ENTRY_COL.TWD);
   var tagCol = schema.columnLetter_(schema.ENTRY_COL.TAG);
+  assertSafeStatus_(schema.ENTRY_STATUS_DELETED);
+  var statusCol = schema.columnLetter_(schema.ENTRY_COL.STATUS);
+  var alive = entry + '!' + statusCol + '2:' + statusCol + '<>"' + schema.ENTRY_STATUS_DELETED + '"';
   var probe = 'ISNUMBER(SEARCH("、"&name&"、","、"&' + entry + '!' + tagCol + '2:' + tagCol + '&"、"))';
   return {
-    total: '=MAP(A2:A300,LAMBDA(name,IF(name="",,IFERROR(SUM(FILTER(' + entry + '!' + twdCol + '2:' + twdCol + ',' + probe + ')),0))))',
-    count: '=MAP(A2:A300,LAMBDA(name,IF(name="",,IFERROR(COUNTA(FILTER(' + entry + '!' + nameCol + '2:' + nameCol + ',' + probe + ')),0))))'
+    total: '=MAP(A2:A300,LAMBDA(name,IF(name="",,IFERROR(SUM(FILTER(' + entry + '!' + twdCol + '2:' + twdCol + ',' + probe + ',' + alive + ')),0))))',
+    count: '=MAP(A2:A300,LAMBDA(name,IF(name="",,IFERROR(COUNTA(FILTER(' + entry + '!' + nameCol + '2:' + nameCol + ',' + probe + ',' + alive + ')),0))))'
   };
 }
 
