@@ -261,6 +261,39 @@ function syncDeletedSpendEventsUnlocked_() {
   };
 }
 
+function updateSpendEvent_(spreadsheetId, rowNumber, entry) {
+  if (!entry || entry.spendEvents === false) return { ok: true, skipped: true };
+  var calendarId = ensureSpendCalendar_(SPEND_CALENDAR_NAME);
+  var body = spendEventBody_(entry);
+  if (entry.eventId && isEventIdShape_(entry.eventId)) {
+    try {
+      Calendar.Events.update(body, calendarId, entry.eventId);
+      return { ok: true, eventId: entry.eventId };
+    } catch (err) {
+      logPrivate_(err);
+      if (!isMissingCalendar_(err)) return { ok: false, eventId: entry.eventId };
+    }
+  }
+  var inserted = insertSpendEvent_(calendarId, body);
+  if (!inserted.eventId) return { ok: false, eventId: entry.eventId || '' };
+  writeEventIds_(spreadsheetId, [{ rowNumber: rowNumber, eventId: inserted.eventId }]);
+  return { ok: true, eventId: inserted.eventId };
+}
+
+function removeSpendEvent_(eventId) {
+  if (!isEventIdShape_(eventId)) return { ok: true, missing: true };
+  var calendarId = PropertiesService.getScriptProperties().getProperty(PROP_KEYS.SPEND_CALENDAR_ID) || '';
+  if (!isCalendarIdShape_(calendarId)) return { ok: false };
+  try {
+    Calendar.Events.remove(calendarId, eventId);
+    return { ok: true };
+  } catch (err) {
+    logPrivate_(err);
+    if (isMissingCalendar_(err)) return { ok: true, missing: true };
+    return { ok: false };
+  }
+}
+
 function mirrorSpendEntry_(spreadsheetId, rowNumber, entry) {
   if (!entry || entry.spendEvents === false) return '';
   var calendarId = ensureSpendCalendar_(SPEND_CALENDAR_NAME);

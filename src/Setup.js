@@ -14,6 +14,11 @@ function setupTsuke() {
         created = true;
       }
       ensureLedger_(id);
+      try {
+        ensureAiKeywords_(id);
+      } catch (err) {
+        logPrivate_(err);
+      }
       var logNote = '日誌日曆已準備。';
       try {
         ensureLogCalendar_(LOG_CALENDAR_NAME);
@@ -230,6 +235,26 @@ function ensureSpendDeleteTrigger_() {
     if (triggers[i].getHandlerFunction() === handler) return;
   }
   ScriptApp.newTrigger(handler).timeBased().everyHours(1).create();
+}
+
+function ensureAiKeywords_(id) {
+  var rows = sheetValues_(id, SHEET_NAMES.CATEGORIES + '!A2:B30');
+  var defaults = [];
+  DEFAULT_CATEGORIES.forEach(function (row) {
+    if (row[0] === 'AI工具') defaults = String(row[1] || '').split(/[,，]/);
+  });
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i][0] || '').trim() !== 'AI工具') continue;
+    var merged = mergeKeywordList_(rows[i][1], defaults);
+    if (!merged.changed) return;
+    Sheets.Spreadsheets.Values.update(
+      { values: [[guardSheetText(merged.text, 2000)]] },
+      id,
+      SHEET_NAMES.CATEGORIES + '!B' + (i + 2),
+      { valueInputOption: 'RAW' }
+    );
+    return;
+  }
 }
 
 function settingSeedRows_() {

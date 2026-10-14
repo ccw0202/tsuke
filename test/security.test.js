@@ -153,6 +153,20 @@ test('the phone page is the ledger only and does not create a plan calendar', ()
   assert.equal(manifest.oauthScopes.includes('https://www.googleapis.com/auth/calendar'), false);
 });
 
+test('the phone page edits a recent row in place and does not receive event ids', () => {
+  const html = fs.readFileSync('src/Index.html', 'utf8');
+  assert.match(html, /id="category-chips"/);
+  assert.match(html, /id="edit-form"/);
+  assert.match(html, /確定刪除/);
+  assert.match(html, /entry-tap/);
+  assert.match(html, /lastKey && result\.merchantKey !== lastKey/);
+  assert.equal(html.includes('window.confirm'), false);
+  assert.equal(html.includes('eventId'), false);
+  assert.equal(html.includes('innerHTML'), false);
+  const web = fs.readFileSync('src/WebApp.js', 'utf8');
+  assert.match(web, /categoryPinned === true/);
+});
+
 test('the phone viewport is set by doGet and the page keeps large tap targets', () => {
   const web = fs.readFileSync('src/WebApp.js', 'utf8');
   assert.match(web, /addMetaTag\(\s*'viewport'\s*,\s*'width=device-width, initial-scale=1, viewport-fit=cover'\s*\)/);

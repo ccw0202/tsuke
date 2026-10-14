@@ -57,6 +57,7 @@ function previewEntry(line) {
       amount: parsed.amount,
       currency: parsed.currency,
       category: parsed.category,
+      categorySource: parsed.categorySource || '',
       note: parsed.note,
       tag: parsed.tag,
       explicitPaymentCode: explicit ? explicit.code : '',
@@ -116,9 +117,76 @@ function loadWebState_() {
     payments: ctx.payments.slice(0, 24).map(function (payment) {
       return { code: payment.code, name: payment.name };
     }),
+    categories: chipCategories_(ctx.categories),
+    currencies: ALLOWED_CURRENCIES.slice(),
     defaultPaymentCode: ctx.settings.payment,
     recent: readAllEntries_().slice(-8).reverse().map(publicEntry_)
   };
+}
+
+function updateEntryFromWeb(rowNumber, name, amountText, currency, categoryName, paymentCode) {
+  try {
+    return withScriptLock_(function () {
+      var ctx = loadLedgerContext_();
+      var existing = readEntryAt_(ctx.id, rowNumber);
+      var plan = planEntryUpdate_(existing, {
+        name: name,
+        amountText: amountText,
+        currency: currency,
+        categoryName: categoryName,
+        paymentCode: paymentCode
+      }, {
+        payments: ctx.payments,
+        categories: ctx.categories,
+        timeZone: ctx.settings.timeZone
+      });
+      if (!plan.ok) return { ok: false, message: plan.message };
+      writeEntryCells_(ctx.id, plan.rowNumber, plan.cells);
+      if (plan.remember) {
+        rememberPayment_(ctx.id, plan.remember.merchantKey, plan.remember.name, plan.remember.paymentCode, formatTaipeiTimestamp(new Date()));
+      }
+      var calendarNote = '';
+      if (ctx.settings.spendEvents) {
+        var refreshed = updateSpendEvent_(ctx.id, plan.rowNumber, {
+          spendEvents: true,
+          eventId: existing.eventId,
+          date: plan.calendar.date,
+          time: plan.calendar.time,
+          name: plan.calendar.name,
+          amount: plan.calendar.amount,
+          currency: plan.calendar.currency,
+          twd: plan.calendar.twd,
+          timeZone: plan.calendar.timeZone
+        });
+        calendarNote = refreshed.ok ? '已更新「' + SPEND_CALENDAR_NAME + '」。' : '帳已改，花費日曆沒有更新。';
+      }
+      return { ok: true, message: '已更新。' + calendarNote };
+    });
+  } catch (err) {
+    if (err && err.userFacing) return { ok: false, message: err.message };
+    logPrivate_(err);
+    return { ok: false, message: '沒有改到，請稍後再試。' };
+  }
+}
+
+function deleteEntryFromWeb(rowNumber, confirmed) {
+  if (confirmed !== true) return { ok: false, message: '請再按一次確定刪除。' };
+  try {
+    return withScriptLock_(function () {
+      var ctx = loadLedgerContext_();
+      var existing = readEntryAt_(ctx.id, rowNumber);
+      if (ctx.settings.spendEvents && existing.eventId) {
+        var removed = removeSpendEvent_(existing.eventId);
+        if (!removed.ok) return { ok: false, message: '沒有刪除。花費日曆沒有改。' };
+      }
+      deleteEntryRow_(ctx.id, existing.rowNumber);
+      return { ok: true, message: '已刪除。' };
+    });
+  } catch (err) {
+    if (err && err.userFacing) return { ok: false, message: err.message };
+    logPrivate_(err);
+    return { ok: false, message: '沒有刪除，請稍後再試。' };
+  }
 }
 
 function writeParsedEntry_(line, options) {
@@ -143,6 +211,7 @@ function writeParsedEntry_(line, options) {
     defaultCode: ctx.settings.payment
   });
   if (!payment) throw userFacingError_('請先在「付款方式」表新增至少一個付款方式。');
+  var category = chooseCategory_(parsed, options, ctx.categories);
   var tag = mergeTagNames(parsed.tag, tagsForDate(parsed.date, ctx.tags));
   var createdAt = formatTaipeiTimestamp(new Date());
   var rowNumber = nextEntryRow_(ctx.id);
@@ -152,7 +221,7 @@ function writeParsedEntry_(line, options) {
     name: parsed.name,
     amount: parsed.amount,
     currency: parsed.currency,
-    category: parsed.category,
+    category: category,
     paymentCode: payment.code,
     paymentName: payment.name,
     accountCode: payment.accountCode || '',
@@ -188,14 +257,14 @@ function writeParsedEntry_(line, options) {
   return {
     ok: true,
     type: 'expense',
-    message: '已記下：' + parsed.date + (parsed.time ? ' ' + parsed.time : '') + ' ' + parsed.name + ' ' + parsed.amount + ' ' + parsed.currency + ' · ' + parsed.category + ' · ' + payment.name + (spendNote ? '。' + spendNote : ''),
+    message: '已記下：' + parsed.date + (parsed.time ? ' ' + parsed.time : '') + ' ' + parsed.name + ' ' + parsed.amount + ' ' + parsed.currency + ' · ' + category + ' · ' + payment.name + (spendNote ? '。' + spendNote : ''),
     entry: publicEntry_({
       date: parsed.date,
       name: parsed.name,
       amount: parsed.amount,
       currency: parsed.currency,
       twd: parsed.currency === 'TWD' ? parsed.amount : null,
-      category: parsed.category,
+      category: category,
       paymentName: payment.name,
       tag: tag
     })
@@ -256,7 +325,59 @@ function loadLedgerContext_() {
 function readAllEntries_() {
   requireAdvancedServices_();
   var id = requireLedgerId_();
-  return activeEntries_(entriesFromRows(sheetValues_(id, SHEET_NAMES.ENTRIES + '!A2:' + columnLetter_(ENTRY_HEADERS.length))));
+  var values = sheetValues_(id, SHEET_NAMES.ENTRIES + '!A2:' + columnLetter_(ENTRY_HEADERS.length));
+  var entries = [];
+  values.forEach(function (row, index) {
+    var parsed = entriesFromRows([row]);
+    if (!parsed.length) return;
+    parsed[0].rowNumber = index + 2;
+    entries.push(parsed[0]);
+  });
+  return activeEntries_(entries);
+}
+
+function readEntryAt_(id, rowNumber) {
+  var row = coerceRowNumber_(rowNumber);
+  var values = sheetValues_(id, SHEET_NAMES.ENTRIES + '!A' + row + ':' + columnLetter_(ENTRY_HEADERS.length) + row);
+  var parsed = entriesFromRows(values[0] ? [values[0]] : []);
+  if (!parsed.length) throw userFacingError_('找不到這一筆。');
+  parsed[0].rowNumber = row;
+  return parsed[0];
+}
+
+function coerceRowNumber_(value) {
+  var row = typeof value === 'number' ? value : Number(String(value == null ? '' : value).trim());
+  if (!Number.isInteger(row) || row < 2 || row > 100000) throw userFacingError_('找不到這一筆。');
+  return row;
+}
+
+function writeEntryCells_(id, rowNumber, cells) {
+  var row = coerceRowNumber_(rowNumber);
+  var data = (cells || []).map(function (cell) {
+    if (!cell || !Number.isInteger(cell.column) || cell.column < 1) throw userFacingError_('帳列位置不正確');
+    var letter = columnLetter_(cell.column);
+    return { range: SHEET_NAMES.ENTRIES + '!' + letter + row, values: [[cell.value]] };
+  });
+  if (!data.length) return;
+  Sheets.Spreadsheets.Values.batchUpdate({ valueInputOption: 'USER_ENTERED', data: data }, id);
+}
+
+function deleteEntryRow_(id, rowNumber) {
+  var row = coerceRowNumber_(rowNumber);
+  var sheet = sheetMap_(id)[SHEET_NAMES.ENTRIES];
+  if (!sheet || !sheet.properties) throw userFacingError_('找不到帳目表。');
+  Sheets.Spreadsheets.batchUpdate({
+    requests: [{
+      deleteDimension: {
+        range: {
+          sheetId: sheet.properties.sheetId,
+          dimension: 'ROWS',
+          startIndex: row - 1,
+          endIndex: row
+        }
+      }
+    }]
+  }, id);
 }
 
 function nextEntryRow_(id) {
@@ -320,14 +441,5 @@ function batchValues_(id, ranges) {
 }
 
 function publicEntry_(entry) {
-  return {
-    date: String(entry.date || ''),
-    name: String(entry.name || ''),
-    amount: entry.amount,
-    currency: String(entry.currency || ''),
-    category: String(entry.category || ''),
-    paymentName: String(entry.paymentName || ''),
-    tag: String(entry.tag || ''),
-    twd: typeof entry.twd === 'number' && isFinite(entry.twd) ? entry.twd : null
-  };
+  return publicEntryFields_(entry);
 }

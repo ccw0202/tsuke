@@ -46,11 +46,14 @@ function getWebAppState() {
   }
 }
 
-function addEntryFromWeb(line, paymentCode, paymentPinned) {
+function addEntryFromWeb(line, paymentCode, paymentPinned, categoryName, categoryPinned) {
   var code = typeof paymentCode === 'string' ? paymentCode.slice(0, 32) : '';
+  var category = typeof categoryName === 'string' ? categoryName.slice(0, 20) : '';
   return addEntry(line, {
     paymentCode: code,
     paymentPinned: paymentPinned === true,
+    categoryName: category,
+    categoryPinned: categoryPinned === true,
     source: 'web'
   });
 }

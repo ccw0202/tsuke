@@ -186,6 +186,24 @@ function serialToIso_(value) {
   return require('./Parser.js').sheetsSerialToIso(value);
 }
 
+function publicEntryFields_(entry) {
+  var source = entry || {};
+  var out = {
+    date: String(source.date || ''),
+    name: String(source.name || ''),
+    amount: source.amount,
+    currency: String(source.currency || ''),
+    category: String(source.category || ''),
+    paymentName: String(source.paymentName || ''),
+    paymentCode: String(source.paymentCode || ''),
+    tag: String(source.tag || ''),
+    twd: typeof source.twd === 'number' && isFinite(source.twd) ? source.twd : null
+  };
+  var row = source.rowNumber;
+  if (Number.isInteger(row) && row >= 2 && row <= 100000) out.rowNumber = row;
+  return out;
+}
+
 function searchEntryList(entries, query) {
   var needle = String(query || '').trim().toLowerCase();
   if (!needle) return [];
@@ -235,6 +253,7 @@ if (typeof module !== 'undefined' && module.exports) {
     tagsFromRows: tagsFromRows,
     memoryFromRows: memoryFromRows,
     entriesFromRows: entriesFromRows,
-    activeEntries_: activeEntries_
+    activeEntries_: activeEntries_,
+    publicEntryFields_: publicEntryFields_
   };
 }
