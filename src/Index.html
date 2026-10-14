@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#9c3418">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Tsuke">
+  <title>Tsuke</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect fill='%23f4f0e6' width='64' height='64'/%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%239c3418' stroke-width='3'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-size='22' fill='%239c3418' font-family='serif'%3E記%3C/text%3E%3C/svg%3E">
+  <style>
+    :root {
+      --paper: #f3ecdf;
+      --card: #fbf7ef;
+      --ink: #241c16;
+      --muted: #6f6256;
+      --line: #e4d8c6;
+      --seal: #9c3418;
+      --seal-ink: #fff8ef;
+      --ok: #1f6a45;
+      --shadow: 0 18px 40px rgba(60, 36, 18, 0.08);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, transparent 0 1.15rem, rgba(156, 52, 24, 0.35) 1.15rem 1.22rem, transparent 1.22rem),
+        repeating-linear-gradient(180deg, transparent 0 1.85rem, rgba(90, 62, 36, 0.05) 1.85rem 1.9rem),
+        var(--paper);
+      font-family: "Iowan Old Style", Palatino, "Palatino Linotype", "Songti TC", "PMingLiU", "Noto Serif TC", serif;
+    }
+    main {
+      width: min(36rem, 100%);
+      margin: 0 auto;
+      padding: calc(1.25rem + env(safe-area-inset-top)) 1.25rem calc(2rem + env(safe-area-inset-bottom));
+    }
+    header { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 1.25rem; }
+    .seal {
+      width: 3.4rem;
+      height: 3.4rem;
+      border: 2px solid var(--seal);
+      border-radius: 50%;
+      color: var(--seal);
+      display: grid;
+      place-items: center;
+      font-size: 1.45rem;
+      transform: rotate(-8deg);
+      box-shadow: inset 0 0 0 1px rgba(156, 52, 24, 0.35);
+      flex: none;
+    }
+    h1 { font-size: 1.85rem; font-weight: 560; letter-spacing: 0.04em; margin: 0; line-height: 1; }
+    h1 span { display: block; margin-top: 0.28rem; color: var(--muted); font-size: 0.95rem; letter-spacing: 0.14em; }
+    .sheet {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 1.1rem;
+      box-shadow: var(--shadow);
+      padding: 1rem 1rem 1.1rem;
+    }
+    label { display: block; font-size: 0.92rem; color: var(--muted); margin-bottom: 0.35rem; }
+    input[type="text"] {
+      width: 100%;
+      border: 0;
+      border-bottom: 2px solid var(--ink);
+      background: transparent;
+      color: var(--ink);
+      font: 1.2rem/1.4 inherit;
+      padding: 0.55rem 0.1rem 0.45rem;
+      border-radius: 0;
+    }
+    input[type="text"]:focus { outline: 3px solid rgba(156, 52, 24, 0.25); outline-offset: 3px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.9rem 0 0.35rem; }
+    .chips button, .submit {
+      font: 600 1rem/1 "Avenir Next", "PingFang TC", "Noto Sans TC", sans-serif;
+      min-height: 2.75rem;
+      border-radius: 999px;
+    }
+    .chips button {
+      border: 1px solid #c9b8a2;
+      background: transparent;
+      color: var(--ink);
+      padding: 0 0.9rem;
+    }
+    .chips button.is-on { background: var(--ink); color: var(--seal-ink); border-color: var(--ink); }
+    .chips button:focus-visible, .submit:focus-visible { outline: 3px solid rgba(156, 52, 24, 0.35); outline-offset: 2px; }
+    .submit {
+      width: 100%;
+      margin-top: 0.85rem;
+      border: 0;
+      background: var(--seal);
+      color: var(--seal-ink);
+      letter-spacing: 0.12em;
+    }
+    .submit:disabled { opacity: 0.55; }
+    #status { min-height: 1.4rem; margin: 0.75rem 0 0; font-size: 0.95rem; }
+    #status.is-bad { color: var(--seal); }
+    #status.is-ok { color: var(--ok); }
+    #preview { margin: 0.7rem 0 0; color: var(--muted); font-size: 0.92rem; min-height: 1.2rem; }
+    .hint { color: var(--muted); font-size: 0.85rem; margin: 0.8rem 0 0; }
+    h2 { font-size: 1rem; font-weight: 560; margin: 1.4rem 0 0.4rem; letter-spacing: 0.08em; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.35rem 0.8rem;
+      padding: 0.75rem 0;
+      border-top: 1px solid var(--line);
+    }
+    li strong { font-weight: 560; }
+    .meta, .amount { font-family: "Avenir Next", "PingFang TC", "Noto Sans TC", sans-serif; font-size: 0.86rem; }
+    .meta { color: var(--muted); grid-column: 1; }
+    .amount { font-variant-numeric: tabular-nums; text-align: right; }
+    .empty { color: var(--muted); border-top: 1px solid var(--line); padding-top: 0.8rem; }
+    #demo-banner {
+      background: #efe2c4;
+      border: 1px dashed #9c3418;
+      border-radius: 0.8rem;
+      padding: 0.7rem 0.8rem;
+      margin-bottom: 0.9rem;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p id="demo-banner" hidden>本機預覽，不會寫入 Google 帳本。畫面上的紀錄是範例。</p>
+    <header>
+      <div class="seal" aria-hidden="true">記</div>
+      <h1>Tsuke<span>つけ · 記一筆</span></h1>
+    </header>
+    <form id="entry-form" class="sheet">
+      <label for="line">今天記什麼</label>
+      <input id="line" name="line" type="text" maxlength="500" autocomplete="off" autocapitalize="off" enterkeyhint="done" placeholder="例如：早餐 80">
+      <div class="chips" id="chips" role="group" aria-label="付款方式"></div>
+      <p id="preview"></p>
+      <button class="submit" id="submit" type="submit">記下</button>
+      <p id="status" role="status" aria-live="polite"></p>
+      <p class="hint">以「日誌」開頭會寫進日曆「Tsuke 日誌」，不會進帳目。付款方式可在試算表修改。</p>
+    </form>
+    <h2>最近</h2>
+    <ul id="recent"></ul>
+  </main>
+  <script>
+    (function () {
+      var DEMO = {
+        ok: true,
+        defaultPaymentCode: 'cube',
+        payments: [
+          { code: 'cube', name: '範例信用卡 Cube' },
+          { code: 'ef', name: '範例信用卡 EF' },
+          { code: '現金', name: '現金' },
+          { code: '轉帳', name: '轉帳' }
+        ],
+        recent: [
+          { date: '2026-01-01', name: '早餐（範例）', amount: 80, currency: 'TWD', category: '吃', paymentName: '現金', tag: '', twd: 80 }
+        ]
+      };
+      var DEMO_MEMORY = { '早餐': '現金' };
+      var state = { payments: [], defaultPaymentCode: '', recent: [] };
+      var selectedCode = '';
+      var pinned = false;
+      var lastKey = '';
+      var explicitCode = '';
+      var saving = false;
+      var demo = false;
+      var previewTimer = 0;
+      var previewSeq = 0;
+      var form = document.getElementById('entry-form');
+      var lineInput = document.getElementById('line');
+      var chips = document.getElementById('chips');
+      var preview = document.getElementById('preview');
+      var status = document.getElementById('status');
+      var recent = document.getElementById('recent');
+      var submitButton = document.getElementById('submit');
+
+      form.addEventListener('submit', onSubmit);
+      lineInput.addEventListener('input', schedulePreview);
+
+      function boot() {
+        if (window.google && google.script && google.script.run) {
+          setStatus('讀取中…', false);
+          google.script.run.withSuccessHandler(applyState).withFailureHandler(function () {
+            setStatus('連線失敗，請再試一次。', true);
+          }).getWebAppState();
+          return;
+        }
+        demo = true;
+        document.getElementById('demo-banner').hidden = false;
+        applyState(DEMO);
+      }
+
+      function applyState(next) {
+        if (!next || !next.ok) {
+          setStatus((next && next.message) || '帳本讀取失敗。請先執行 setupTsuke。', true);
+          return;
+        }
+        state.payments = (next.payments || []).filter(function (payment) {
+          return payment && isChipCode(payment.code);
+        }).slice(0, 24);
+        state.defaultPaymentCode = isChipCode(next.defaultPaymentCode) ? next.defaultPaymentCode : (state.payments[0] ? state.payments[0].code : '');
+        state.recent = Array.isArray(next.recent) ? next.recent : [];
+        if (!pinned) selectChip(state.defaultPaymentCode);
+        renderChips();
+        renderRecent();
+        attachManifest(next.manifestUrl);
+        setStatus('', false);
+      }
+
+      function renderChips() {
+        chips.textContent = '';
+        state.payments.forEach(function (payment) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.dataset.code = payment.code;
+          button.textContent = payment.name || payment.code;
+          button.setAttribute('aria-pressed', button.dataset.code === selectedCode ? 'true' : 'false');
+          if (button.dataset.code === selectedCode) button.classList.add('is-on');
+          button.addEventListener('click', function () { onChip(payment.code); });
+          chips.appendChild(button);
+        });
+      }
+
+      function renderRecent() {
+        recent.textContent = '';
+        if (!state.recent.length) {
+          var empty = document.createElement('li');
+          empty.className = 'empty';
+          empty.textContent = '還沒有紀錄';
+          recent.appendChild(empty);
+          return;
+        }
+        state.recent.slice(0, 8).forEach(function (entry) {
+          var item = document.createElement('li');
+          var name = document.createElement('strong');
+          name.textContent = entry.name || '';
+          var meta = document.createElement('div');
+          meta.className = 'meta';
+          meta.textContent = [entry.date, entry.category, entry.paymentName, entry.tag].filter(Boolean).join(' · ');
+          var amount = document.createElement('div');
+          amount.className = 'amount';
+          amount.textContent = formatAmount(entry);
+          item.appendChild(name);
+          item.appendChild(amount);
+          item.appendChild(meta);
+          recent.appendChild(item);
+        });
+      }
+
+      function onChip(code) {
+        if (explicitCode) {
+          lineInput.value = removeToken(lineInput.value, explicitCode);
+          explicitCode = '';
+        }
+        pinned = true;
+        selectChip(code);
+        renderChips();
+        schedulePreview();
+      }
+
+      function schedulePreview() {
+        window.clearTimeout(previewTimer);
+        previewTimer = window.setTimeout(runPreview, 220);
+      }
+
+      function runPreview() {
+        var seq = ++previewSeq;
+        var line = lineInput.value;
+        if (!line.trim()) {
+          pinned = false;
+          lastKey = '';
+          explicitCode = '';
+          selectChip(state.defaultPaymentCode);
+          renderChips();
+          preview.textContent = '';
+          submitButton.textContent = '記下';
+          return;
+        }
+        if (demo) {
+          showPreview(seq, previewLocally(line));
+          return;
+        }
+        google.script.run.withSuccessHandler(function (result) {
+          showPreview(seq, result);
+        }).withFailureHandler(function () {
+          if (seq !== previewSeq) return;
+          preview.textContent = '';
+        }).previewEntry(line);
+      }
+
+      function showPreview(seq, result) {
+        if (seq !== previewSeq || !result) return;
+        if (!result.ok) {
+          preview.textContent = result.message || '';
+          submitButton.textContent = '記下';
+          return;
+        }
+        if (result.type === 'log') {
+          preview.textContent = result.summary || '這則會寫成全日曆事件';
+          submitButton.textContent = '寫入日誌';
+          return;
+        }
+        submitButton.textContent = '記下';
+        if (result.merchantKey !== lastKey) {
+          lastKey = result.merchantKey || '';
+          pinned = false;
+        }
+        explicitCode = result.explicitPaymentCode || '';
+        if (explicitCode) {
+          if (!selectChip(explicitCode)) clearChipSelection();
+        } else if (!pinned && result.suggestedPaymentCode) {
+          selectChip(result.suggestedPaymentCode);
+        }
+        renderChips();
+        preview.textContent = result.summary || '';
+      }
+
+      function onSubmit(event) {
+        event.preventDefault();
+        var line = lineInput.value;
+        if (!line.trim() || saving) return;
+        saving = true;
+        submitButton.disabled = true;
+        if (demo) {
+          var local = previewLocally(line);
+          if (!local.ok) {
+            setStatus(local.message || '沒有記下', true);
+          } else if (local.type === 'log') {
+            setStatus('本機預覽，沒有寫入日曆。', false);
+            lineInput.value = '';
+          } else {
+            state.recent.unshift({
+              date: '2026-01-02',
+              name: (local.name || '（未命名）') + '（範例）',
+              amount: local.amount,
+              currency: 'TWD',
+              category: '日常',
+              paymentName: paymentName(explicitCode || selectedCode),
+              tag: '',
+              twd: local.amount
+            });
+            renderRecent();
+            lineInput.value = '';
+            pinned = false;
+            setStatus('本機預覽，沒有寫入帳本。', false);
+          }
+          saving = false;
+          submitButton.disabled = false;
+          preview.textContent = '';
+          return;
+        }
+        google.script.run.withSuccessHandler(function (result) {
+          saving = false;
+          submitButton.disabled = false;
+          if (!result || !result.ok) {
+            setStatus((result && result.message) || '沒有記下', true);
+            return;
+          }
+          setStatus(result.message || '已記下', false);
+          lineInput.value = '';
+          pinned = false;
+          lastKey = '';
+          explicitCode = '';
+          preview.textContent = '';
+          submitButton.textContent = '記下';
+          refreshRecent();
+        }).withFailureHandler(function () {
+          saving = false;
+          submitButton.disabled = false;
+          setStatus('連線失敗，請再試一次。', true);
+        }).addEntryFromWeb(line, selectedCode || '', pinned === true);
+      }
+
+      function refreshRecent() {
+        google.script.run.withSuccessHandler(function (next) {
+          if (!next || !next.ok) return;
+          state.recent = next.recent || [];
+          renderRecent();
+        }).withFailureHandler(function () {}).getWebAppState();
+      }
+
+      function selectChip(code) {
+        if (!isChipCode(code)) return false;
+        var known = state.payments.some(function (payment) { return payment.code === code; });
+        if (!known) return false;
+        selectedCode = code;
+        return true;
+      }
+
+      function clearChipSelection() {
+        selectedCode = '';
+      }
+
+      function paymentName(code) {
+        var found = state.payments.filter(function (payment) { return payment.code === code; })[0];
+        return found ? found.name : code;
+      }
+
+      function setStatus(message, isError) {
+        status.textContent = message || '';
+        status.className = message ? (isError ? 'is-bad' : 'is-ok') : '';
+      }
+
+      function formatAmount(entry) {
+        var amount = Number(entry.amount);
+        if (!isFinite(amount)) return '';
+        var text = amount.toLocaleString('zh-Hant', { maximumFractionDigits: 2 }) + ' ' + (entry.currency || '');
+        if (entry.currency && entry.currency !== 'TWD' && typeof entry.twd === 'number') {
+          text += ' · 約 ' + Number(entry.twd).toLocaleString('zh-Hant', { maximumFractionDigits: 0 });
+        }
+        return text;
+      }
+
+      function isChipCode(code) {
+        return /^[\u4e00-\u9fffA-Za-z0-9_-]{1,32}$/.test(String(code || ''));
+      }
+
+      function removeToken(line, code) {
+        var parts = String(line).split(/\s+/);
+        for (var i = parts.length - 1; i >= 0; i--) {
+          if (parts[i].toLowerCase() === String(code).toLowerCase() || parts[i] === code) {
+            parts.splice(i, 1);
+            break;
+          }
+        }
+        return parts.join(' ').trim();
+      }
+
+      function attachManifest(url) {
+        if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec\?page=manifest$/.test(String(url || ''))) return;
+        var link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = url;
+        document.head.appendChild(link);
+      }
+
+      boot();
+
+      function chipCodeForToken(token) {
+        var folded = String(token || '').toLowerCase();
+        var found = state.payments.filter(function (payment) {
+          return payment.code.toLowerCase() === folded || String(payment.name || '').toLowerCase() === folded;
+        })[0];
+        if (found) return found.code;
+        if (/^[\u4e00-\u9fffA-Za-z0-9]{1,12}轉帳$/.test(token)) return token;
+        return '';
+      }
+
+      function previewLocally(line) {
+        var text = String(line || '').trim();
+        if (/^日誌(?:$|[\s:：])/.test(text)) {
+          var body = text.replace(/^日誌[\s:：]*/, '').trim();
+          if (!body) return { ok: false, message: '請輸入日誌內容' };
+          return { ok: true, type: 'log', summary: '日誌 · ' + body };
+        }
+        var tokens = text.split(/\s+/);
+        var typed = '';
+        var rest = [];
+        tokens.forEach(function (token) {
+          var code = chipCodeForToken(token);
+          if (code) typed = code;
+          else rest.push(token);
+        });
+        var amount = null;
+        var at = -1;
+        rest.forEach(function (token, index) {
+          if (/^\d+(?:\.\d+)?$/.test(token)) {
+            amount = Number(token);
+            at = index;
+          }
+        });
+        if (amount === null) return { ok: false, message: '請輸入金額' };
+        var name = rest.filter(function (_, index) { return index !== at; }).join(' ') || '（未命名）';
+        var key = name.trim().toLowerCase();
+        return {
+          ok: true,
+          type: 'expense',
+          name: name,
+          merchantKey: key,
+          amount: amount,
+          currency: 'TWD',
+          category: '日常',
+          explicitPaymentCode: typed,
+          suggestedPaymentCode: DEMO_MEMORY[key] || state.defaultPaymentCode,
+          summary: name + ' ' + amount + ' TWD'
+        };
+      }
+    })();
+  </script>
+</body>
+</html>
