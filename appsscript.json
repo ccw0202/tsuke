@@ -1,0 +1,44 @@
+{
+  "timeZone": "Asia/Taipei",
+  "dependencies": {
+    "enabledAdvancedServices": [
+      {
+        "userSymbol": "Sheets",
+        "serviceId": "sheets",
+        "version": "v4"
+      },
+      {
+        "userSymbol": "Calendar",
+        "serviceId": "calendar",
+        "version": "v3"
+      }
+    ]
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/calendar.app.created",
+    "https://www.googleapis.com/auth/calendar.addons.execute"
+  ],
+  "webapp": {
+    "executeAs": "USER_DEPLOYING",
+    "access": "MYSELF"
+  },
+  "addOns": {
+    "common": {
+      "name": "Tsuke",
+      "logoUrl": "https://www.gstatic.com/images/icons/material/system/1x/receipt_long_black_48dp.png",
+      "layoutProperties": {
+        "primaryColor": "#9c3418",
+        "secondaryColor": "#f4f0e6"
+      }
+    },
+    "calendar": {
+      "homepageTrigger": {
+        "runFunction": "onCalendarHomepage",
+        "enabled": true
+      }
+    }
+  }
+}
