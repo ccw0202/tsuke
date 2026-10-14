@@ -19,7 +19,8 @@
   "oauthScopes": [
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/calendar.app.created",
-    "https://www.googleapis.com/auth/calendar.addons.execute"
+    "https://www.googleapis.com/auth/calendar.addons.execute",
+    "https://www.googleapis.com/auth/script.scriptapp"
   ],
   "webapp": {
     "executeAs": "USER_DEPLOYING",

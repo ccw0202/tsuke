@@ -191,7 +191,10 @@ test('the manifest still does not ask for the main calendar', () => {
   assert.equal(setup.includes('forUserCalendar'), false);
   assert.match(setup, /timeBased\(\)\.everyHours\(1\)/);
   assert.match(source, /function syncDeletedSpendEvents\(/);
-  assert.equal(manifest.oauthScopes.includes('https://www.googleapis.com/auth/script.scriptapp'), false);
+  assert.equal(manifest.oauthScopes.includes('https://www.googleapis.com/auth/script.scriptapp'), true);
+  assert.match(setup, /帳本已準備，但每小時核對沒有排上/);
+  assert.equal(setup.includes('還沒有排程核對花費日曆'), false);
+  assert.match(fs.readFileSync('README.md', 'utf8'), /moving it to another calendar/);
   const readme = fs.readFileSync('README.md', 'utf8');
   assert.equal(readme.includes('syncDeletedSpendEvents'), true);
   assert.equal(readme.includes('已刪除'), true);

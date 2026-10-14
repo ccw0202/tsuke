@@ -35,13 +35,17 @@ function setupTsuke() {
         logPrivate_(err);
         spendNote = '花費日曆尚未建立。請確認已授權日曆後，再執行一次 setupTsuke。';
       }
-      var triggerNote = '已安排每小時核對「' + SPEND_CALENDAR_NAME + '」。';
       try {
         ensureSpendDeleteTrigger_();
       } catch (err) {
         logPrivate_(err);
-        triggerNote = '還沒有排程核對花費日曆。請再執行一次 setupTsuke，或手動執行 syncDeletedSpendEvents。';
+        return {
+          ok: false,
+          message: '帳本已準備，但每小時核對沒有排上。請重新授權後再執行一次 setupTsuke。這項授權只用來管理這個專案自己的觸發條件。',
+          spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/' + id + '/edit'
+        };
       }
+      var triggerNote = '已安排每小時核對「' + SPEND_CALENDAR_NAME + '」。';
       return {
         ok: true,
         message: (created ? '已建立帳本。' : '已檢查帳本。') + '付款方式的卡片名稱是範例，請改成你自己的。' + logNote + spendNote + planNote + triggerNote,

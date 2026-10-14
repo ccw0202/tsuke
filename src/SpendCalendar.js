@@ -104,6 +104,7 @@ function planSpendSync_(rows, remoteEvents) {
 /**
  * remoteEvents include cancelled events from 「Tsuke 花費」.
  * A row is soft-deleted only when its stored event id is one of those cancelled ids.
+ * Deleting the event, or moving it to another calendar, cancels it on 「Tsuke 花費」.
  * An id that is simply absent is not a delete: a replaced calendar has none of the
  * old events, and those rows should be recreated rather than erased.
  */

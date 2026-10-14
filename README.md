@@ -80,9 +80,9 @@ A line with a clock time, such as `早餐 8:30 80`, becomes a 30-minute event at
 
 The event id is stored on the row in 日曆事件. Edit the row in the sheet, or delete it, then run `syncSpendCalendar` from the editor. That updates events that are still on the sheet and deletes Tsuke events whose rows are gone. It does not delete events you added by hand on that calendar, and it does not touch any other calendar.
 
-The other direction is soft-delete. `setupTsuke` installs an hourly time-driven trigger, `syncDeletedSpendEvents`. It lists 「Tsuke 花費」, including cancelled events, and when a stored event id is cancelled it writes 已刪除 in 狀態 and clears 日曆事件. The row stays in the sheet. Search, the phone's recent list, and the month and tag totals skip it. Clear 狀態 to bring the row back, then run `syncSpendCalendar` if you want a new event. An event id that is simply missing, with no cancelled event, is not treated as a delete: that is what a replaced calendar looks like, and `syncSpendCalendar` creates a new event instead. Re-run `setupTsuke` after updating so the 狀態 column, the totals, and the hourly trigger are installed. You can also run `syncDeletedSpendEvents` from the editor.
+The other direction is soft-delete. `setupTsuke` installs an hourly time-driven trigger, `syncDeletedSpendEvents`. It lists 「Tsuke 花費」, including cancelled events, and when a stored event id is cancelled it writes 已刪除 in 狀態 and clears 日曆事件. Deleting the event, or moving it to another calendar, cancels it there, and the same row is marked 已刪除. The row stays in the sheet. Search, the phone's recent list, and the month and tag totals skip it. Clear 狀態 to bring the row back, then run `syncSpendCalendar` if you want a new event. An event id that is simply missing, with no cancelled event, is not treated as a delete: that is what a replaced calendar looks like, and `syncSpendCalendar` creates a new event instead. Re-run `setupTsuke` after updating so the 狀態 column, the totals, and the hourly trigger are installed. You can also run `syncDeletedSpendEvents` from the editor. If the trigger cannot be installed, `setupTsuke` stops with 「帳本已準備，但每小時核對沒有排上」 instead of reporting success.
 
-This check stays on `calendar.app.created`. An installable calendar `onEventUpdated` trigger would not: Apps Script registers that through the broad Calendar service (`https://www.googleapis.com/auth/calendar`), which can read and change every calendar you can edit. The hourly job uses the Calendar advanced service this script already has, and only the 「Tsuke 花費」 id. No scope was added.
+This check lists only 「Tsuke 花費」 under `calendar.app.created`. Installing the trigger adds `https://www.googleapis.com/auth/script.scriptapp`, which only manages this project's own triggers. An installable calendar `onEventUpdated` trigger is still not used: Apps Script registers that through the broad Calendar service (`https://www.googleapis.com/auth/calendar`), which can read and change every calendar you can edit.
 
 Set 花費日曆 to `FALSE` to stop. New entries stay in the sheet only, and both `syncSpendCalendar` and the hourly check leave the sheet and the calendar as they are. Existing events stay until you hide or delete that calendar yourself.
 
@@ -126,7 +126,7 @@ Node 18 or newer. The tests do not call Google. They cover the parser, payment p
 
    `clasp login` writes `~/.clasprc.json`. That file is credentials. Do not commit it. This repo gitignores `.clasprc.json` and `.clasp.json`.
 
-2. Create the standalone script in a temporary directory, then push this repo. `clasp create` writes a default `appsscript.json` into `--rootDir` (it reports that it cloned one file). Running it with `--rootDir .` replaces this repo's manifest, so the Sheets and Calendar advanced services, the three scopes, and `Asia/Taipei` never reach the project. `setupTsuke` then fails with `ReferenceError: Sheets is not defined`.
+2. Create the standalone script in a temporary directory, then push this repo. `clasp create` writes a default `appsscript.json` into `--rootDir` (it reports that it cloned one file). Running it with `--rootDir .` replaces this repo's manifest, so the Sheets and Calendar advanced services, the four scopes, and `Asia/Taipei` never reach the project. `setupTsuke` then fails with `ReferenceError: Sheets is not defined`.
 
    From the repo root:
 
@@ -150,11 +150,11 @@ Node 18 or newer. The tests do not call Google. They cover the parser, payment p
    clasp push
    ```
 
-   `git status` should no longer list `appsscript.json`. Leave the clasp-generated manifest uncommitted. Run `setupTsuke` again. If the consent screen already ran against the default scopes, accept it again so the three scopes in `appsscript.json` are granted.
+   `git status` should no longer list `appsscript.json`. Leave the clasp-generated manifest uncommitted. Run `setupTsuke` again. If the consent screen already ran against the default scopes, accept it again so the four scopes in `appsscript.json` are granted.
 
 3. `clasp push` sends `enabledAdvancedServices` from the committed `appsscript.json` (Sheets API as `Sheets`, Calendar API as `Calendar`). If `setupTsuke` says those services are missing, the Apps Script project is still on the default manifest: restore and push as in step 2, then run setup again.
 
-4. Run `setupTsuke` from the editor and accept the consent screen. The script asks for three scopes, listed in [SECURITY.md](SECURITY.md). It creates a spreadsheet named **Tsuke 帳本** in your Drive and stores that id in Script Properties. It also creates the **Tsuke 日誌**, **Tsuke 花費**, and **Tsuke 活動** calendars the first time it can, and installs the hourly `syncDeletedSpendEvents` trigger. Re-run `setupTsuke` after you update the script so those calendars exist and the 狀態 column is present. If this ledger already has rows, run `syncSpendCalendar` once to add events for them. A web app deployment is a saved version: `clasp push` alone does not update the phone page. Create a new deployment version, still as only yourself. The function's return value includes the spreadsheet URL. That URL is private. Do not paste it into git, a screenshot, or a public issue.
+4. Run `setupTsuke` from the editor and accept the consent screen. The script asks for four scopes, listed in [SECURITY.md](SECURITY.md). The fourth, `script.scriptapp`, only manages this project's own triggers so the hourly check can be installed. It creates a spreadsheet named **Tsuke 帳本** in your Drive and stores that id in Script Properties. It also creates the **Tsuke 日誌**, **Tsuke 花費**, and **Tsuke 活動** calendars the first time it can, and installs the hourly `syncDeletedSpendEvents` trigger. If that install fails, the function returns 「帳本已準備，但每小時核對沒有排上」 and does not claim success; authorize again and run it once more. Re-run `setupTsuke` after you update the script so those calendars exist and the 狀態 column is present. If this ledger already has rows, run `syncSpendCalendar` once to add events for them. A web app deployment is a saved version: `clasp push` alone does not update the phone page. Create a new deployment version, still as only yourself. The function's return value includes the spreadsheet URL. That URL is private. Do not paste it into git, a screenshot, or a public issue.
 
 5. Open 付款方式 and replace the example card names. Change 預設付款代碼 in 設定 if the default button should not be `cube`. Edit keywords in 分類 if you want different guesses. Add a row to 標籤 when you want a date range, for example name `範例旅行`, start `2026-02-15`, end `2026-02-22`.
 
@@ -238,7 +238,7 @@ ChatGPT 20 USD cube
 
 「預訂活動」選日期（留空就是明天）、時間可留空、名稱（例如：跟朋友吃飯），跟誰和地點可不填。有時間就是 60 分鐘的活動，沒有時間就是全日。活動寫進「Tsuke 活動」，不是主要日曆。`calendar.app.created` 只能寫腳本自己建立的日曆。若要寫進主要日曆，得另外要 `calendar.events`，那也會讓腳本讀寫你每一本可編輯日曆上的活動，所以這版不採用。可以在 Google 日曆裡把「Tsuke 活動」單獨隱藏。
 
-每一筆帳會在「Tsuke 花費」再加一個事件。句子裡有時間（例如 `早餐 8:30 80`）就是當天 30 分鐘的事件；沒有時間就是那天的全日事件。標題像 `早餐 80`，外幣像 `ChatGPT 20 USD (≈NT$650)`（約當台幣要等試算表算出來，再執行 `syncSpendCalendar`）。事件 id 存在「日曆事件」欄。你改了或刪了某一列之後，在編輯器執行 `syncSpendCalendar`，日曆才會跟著改。反過來，若你在 Google 日曆裡刪掉「Tsuke 花費」上的事件，每小時的 `syncDeletedSpendEvents` 會把對應的那一列標成「已刪除」，並清掉事件 id，列還留在表上。搜尋、手機上的最近紀錄、月份和標籤合計都會略過它。把「狀態」清掉就能還原，再執行 `syncSpendCalendar` 會把事件加回去。只是找不到事件 id、日曆裡也沒有已取消的那筆，不會當成刪除。更新程式後再執行一次 `setupTsuke`，才會有「狀態」欄和這個每小時觸發。這仍然只用 `calendar.app.created`。日曆更新觸發會連帶要到較寬的 `calendar` 範圍，可以讀寫每一本你能編輯的日曆，所以這版不用。設定裡的「花費日曆」改成 `FALSE` 就不再寫入，也不會因為日曆上的刪除去改帳本。這本日曆可以在 Google 日曆裡單獨隱藏。
+每一筆帳會在「Tsuke 花費」再加一個事件。句子裡有時間（例如 `早餐 8:30 80`）就是當天 30 分鐘的事件；沒有時間就是那天的全日事件。標題像 `早餐 80`，外幣像 `ChatGPT 20 USD (≈NT$650)`（約當台幣要等試算表算出來，再執行 `syncSpendCalendar`）。事件 id 存在「日曆事件」欄。你改了或刪了某一列之後，在編輯器執行 `syncSpendCalendar`，日曆才會跟著改。反過來，若你在 Google 日曆裡刪掉「Tsuke 花費」上的事件，或把事件移到別的日曆，原來的事件會變成已取消，每小時的 `syncDeletedSpendEvents` 會把對應的那一列標成「已刪除」，並清掉事件 id，列還留在表上。搜尋、手機上的最近紀錄、月份和標籤合計都會略過它。把「狀態」清掉就能還原，再執行 `syncSpendCalendar` 會把事件加回去。只是找不到事件 id、日曆裡也沒有已取消的那筆，不會當成刪除。更新程式後再執行一次 `setupTsuke`，才會有「狀態」欄和這個每小時觸發。列出這本日曆仍只用 `calendar.app.created`。排程觸發要另外的 `script.scriptapp`，而且只用來管理這個專案自己的觸發條件。日曆更新觸發會連帶要到較寬的 `calendar` 範圍，可以讀寫每一本你能編輯的日曆，所以這版不用。設定裡的「花費日曆」改成 `FALSE` 就不再寫入，也不會因為日曆上的刪除去改帳本。這本日曆可以在 Google 日曆裡單獨隱藏。
 
 「標籤」表填名稱和起迄日期（含第一天和最後一天）。那段期間的帳會自動帶上標籤，表上也會加總約當台幣。側欄可以依關鍵字、分類或標籤搜尋所有年份，也可以列出某個標籤的明細和合計。
 
@@ -270,7 +270,7 @@ ChatGPT 20 USD cube
    ```
 
    還原後 `git status` 不該再列出 `appsscript.json`。不要提交 clasp 產生的預設 manifest。若同意畫面是用預設範圍跑過的，重新執行 `setupTsuke` 並再授權一次。
-3. 在編輯器執行 `setupTsuke` 並授權。會在你的雲端硬碟建立「Tsuke 帳本」，並準備「Tsuke 日誌」、「Tsuke 花費」和「Tsuke 活動」，也會排程每小時的 `syncDeletedSpendEvents`。更新程式後再執行一次，這三本日曆和「狀態」欄才會齊。若帳本裡已經有舊帳，再執行一次 `syncSpendCalendar`。回傳的試算表網址只留給自己，不要貼到公開的地方。若訊息說進階服務尚未啟用，先做上面的還原與 `clasp push`。網頁應用程式是存好的版本，只 `clasp push` 不會更新手機上的頁面，請建立新的部署版本，存取權限仍選只有我。
+3. 在編輯器執行 `setupTsuke` 並授權。會在你的雲端硬碟建立「Tsuke 帳本」，並準備「Tsuke 日誌」、「Tsuke 花費」和「Tsuke 活動」，也會排程每小時的 `syncDeletedSpendEvents`。同意畫面比以前多一項 `script.scriptapp`，只用來管理這個專案自己的觸發條件。若排程失敗，回傳會是「帳本已準備，但每小時核對沒有排上」，不會假裝成功；重新授權後再執行一次。在「Tsuke 花費」刪掉事件，或把事件移到別的日曆，都會把對應的帳標成已刪除。更新程式後再執行一次，這三本日曆和「狀態」欄才會齊。若帳本裡已經有舊帳，再執行一次 `syncSpendCalendar`。回傳的試算表網址只留給自己，不要貼到公開的地方。若訊息說進階服務尚未啟用，先做上面的還原與 `clasp push`。網頁應用程式是存好的版本，只 `clasp push` 不會更新手機上的頁面，請建立新的部署版本，存取權限仍選只有我。
 4. 打開「付款方式」，把範例卡片名稱改成你的。
 5. 部署網頁應用程式時，執行身分選「我」，存取權限選「只有我」。不要選任何人，也不要選匿名。
 6. 日曆外掛用「測試部署」安裝到自己的 Calendar，從側欄記帳。側欄讀的是 `setupTsuke` 寫進指令碼屬性的同一份帳本 id。若側欄說尚未取得帳本授權，請到專案設定解除授權，移除測試部署後再安裝一次並重新同意。執行記錄裡才有實際錯誤，卡片上不會印出例外內容。

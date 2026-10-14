@@ -17,7 +17,8 @@ test('the committed manifest keeps advanced services, scopes, and web app access
   assert.deepEqual(manifest.oauthScopes, [
     'https://www.googleapis.com/auth/drive.file',
     'https://www.googleapis.com/auth/calendar.app.created',
-    'https://www.googleapis.com/auth/calendar.addons.execute'
+    'https://www.googleapis.com/auth/calendar.addons.execute',
+    'https://www.googleapis.com/auth/script.scriptapp'
   ]);
 });
 
