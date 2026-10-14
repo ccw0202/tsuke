@@ -108,6 +108,27 @@ test('the event id column is stored only when it has a safe shape', () => {
     eventId: 'abcde_12'
   });
   assert.equal(kept[schema.ENTRY_COL.EVENT_ID - 1], 'abcde_12');
+  assert.equal(kept[schema.ENTRY_COL.TIME - 1], '');
+  const hyphen = security.buildEntryRow({
+    row: 4,
+    date: '2026-10-14',
+    name: '早餐',
+    amount: 80,
+    currency: 'TWD',
+    category: '吃',
+    paymentCode: 'cube',
+    paymentName: '現金',
+    accountCode: '',
+    cardCode: '',
+    tag: '',
+    note: '',
+    merchantKey: '早餐',
+    createdAt: '2026-10-14 09:00:00',
+    time: '08:30',
+    eventId: '-abc_1'
+  });
+  assert.equal(hyphen[schema.ENTRY_COL.TIME - 1], '08:30');
+  assert.equal(hyphen[schema.ENTRY_COL.EVENT_ID - 1], "'-abc_1");
   const loaded = match.entriesFromRows([[
     '2026-10-14', '早餐', 80, 'TWD', 80, '吃', 'cube', '現金', '', '', '', '', '早餐', '2026-10-14 09:00:00', '08:30', "'abcde_12"
   ]]);

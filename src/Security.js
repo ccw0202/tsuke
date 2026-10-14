@@ -102,8 +102,8 @@ function buildEntryRow(fields) {
     guardSheetText(input.note, 200),
     guardSheetText(input.merchantKey, 80),
     input.createdAt,
-    clock,
-    eventId
+    guardSheetText(clock, 8),
+    guardSheetText(eventId, 140)
   ];
 }
 

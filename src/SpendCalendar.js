@@ -257,7 +257,7 @@ function writeEventIds_(spreadsheetId, pairs) {
     data: usable.map(function (pair) {
       return {
         range: SHEET_NAMES.ENTRIES + '!' + column + pair.rowNumber,
-        values: [[pair.eventId]]
+        values: [[guardSheetText(pair.eventId, 140)]]
       };
     })
   }, spreadsheetId);
