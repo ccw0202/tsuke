@@ -55,54 +55,6 @@ function addEntryFromWeb(line, paymentCode, paymentPinned) {
   });
 }
 
-function addLogFromWeb(text) {
-  var checked = assertPlainLine(typeof text === 'string' ? text : '');
-  if (!checked.ok) return { ok: false, message: checked.message };
-  try {
-    return withScriptLock_(function () {
-      var ctx = loadLedgerContext_();
-      var body = plainLogBody_(checked.line, ctx.settings.logMarker);
-      if (!body.ok) return body;
-      var today = todayIsoInTimeZone(new Date(), ctx.settings.timeZone);
-      writeDailyLog_(body.text, today, ctx.settings.calendarName);
-      return { ok: true, message: '已寫入日曆「' + ctx.settings.calendarName + '」。' };
-    });
-  } catch (err) {
-    if (err && err.userFacing) return { ok: false, message: err.message };
-    logPrivate_(err);
-    return { ok: false, message: '日誌沒有寫入，請稍後再試。' };
-  }
-}
-
-function addPlanFromWeb(title, date, time, withWhom, location) {
-  try {
-    return withScriptLock_(function () {
-      var ctx = loadLedgerContext_();
-      var today = todayIsoInTimeZone(new Date(), ctx.settings.timeZone);
-      var fields = planFields_({
-        title: webArg_(title, 80),
-        date: webArg_(date, 10),
-        time: webArg_(time, 8),
-        withWhom: webArg_(withWhom, 40),
-        location: webArg_(location, 80),
-        today: today
-      });
-      if (!fields.ok) return fields;
-      writePlanEvent_(fields, ctx.settings.timeZone);
-      return { ok: true, message: '已寫入日曆「' + PLAN_CALENDAR_NAME + '」：' + fields.title };
-    });
-  } catch (err) {
-    if (err && err.userFacing) return { ok: false, message: err.message };
-    logPrivate_(err);
-    return { ok: false, message: '活動沒有寫入，請稍後再試。' };
-  }
-}
-
-function webArg_(value, max) {
-  if (typeof value !== 'string') return '';
-  return value.slice(0, max);
-}
-
 function scriptWebAppUrl_() {
   var url = '';
   try {

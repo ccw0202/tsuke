@@ -133,6 +133,26 @@ test('the calendar homepage uses the TextButtonStyle enum', () => {
   assert.equal(readme.includes('newTextButtonStyle'), false);
 });
 
+test('the phone page is the ledger only and does not create a plan calendar', () => {
+  const html = fs.readFileSync('src/Index.html', 'utf8');
+  assert.equal(html.includes('role="tablist"'), false);
+  assert.equal(html.includes('預訂活動'), false);
+  assert.equal(html.includes('addLogFromWeb'), false);
+  assert.equal(html.includes('addPlanFromWeb'), false);
+  assert.match(html, /日誌\(\?:\$\|\[\\s:：\]\)/);
+  const web = fs.readFileSync('src/WebApp.js', 'utf8');
+  assert.equal(web.includes('function addLogFromWeb'), false);
+  assert.equal(web.includes('function addPlanFromWeb'), false);
+  assert.equal(fs.existsSync('src/PlanCalendar.js'), false);
+  const schema = fs.readFileSync('src/Schema.js', 'utf8');
+  assert.equal(schema.includes('PLAN_CALENDAR'), false);
+  assert.equal(schema.includes('Tsuke 活動'), false);
+  assert.equal(fs.readFileSync('src/Setup.js', 'utf8').includes('ensurePlanCalendar_'), false);
+  const manifest = JSON.parse(fs.readFileSync('appsscript.json', 'utf8'));
+  assert.equal(manifest.oauthScopes.includes('https://www.googleapis.com/auth/calendar.events'), false);
+  assert.equal(manifest.oauthScopes.includes('https://www.googleapis.com/auth/calendar'), false);
+});
+
 test('the phone viewport is set by doGet and the page keeps large tap targets', () => {
   const web = fs.readFileSync('src/WebApp.js', 'utf8');
   assert.match(web, /addMetaTag\(\s*'viewport'\s*,\s*'width=device-width, initial-scale=1, viewport-fit=cover'\s*\)/);
