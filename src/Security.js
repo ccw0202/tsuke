@@ -186,6 +186,19 @@ function isScriptWebAppUrl_(value) {
   return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(String(value || ''));
 }
 
+/**
+ * Maps a caught error to a card or web reply. The raw message can contain a
+ * spreadsheet id, so only a closed set of sentences is returned.
+ */
+function serviceFailureMessage_(err, fallback) {
+  if (err && err.userFacing && typeof err.message === 'string') return err.message;
+  var text = String(err && (err.message || err));
+  if (/PERMISSION_DENIED|does not have permission|You do not have permission|Authorization is required|Specified permissions are not sufficient/i.test(text)) {
+    return '日曆側欄尚未取得帳本授權。請到 Apps Script 專案設定解除授權，再從「測試部署」移除並重新安裝，然後同意授權。';
+  }
+  return fallback;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     guardSheetText: guardSheetText,
@@ -197,6 +210,7 @@ if (typeof module !== 'undefined' && module.exports) {
     isSpreadsheetIdShape_: isSpreadsheetIdShape_,
     isCalendarIdShape_: isCalendarIdShape_,
     isScriptWebAppUrl_: isScriptWebAppUrl_,
+    serviceFailureMessage_: serviceFailureMessage_,
     monthlySheetFormulas: monthlySheetFormulas,
     tagTotalFormulas: tagTotalFormulas,
     cleanQuery_: cleanQuery_

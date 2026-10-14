@@ -15,6 +15,8 @@ Example card names in the template (`範例信用卡 Cube`, `範例信用卡 EF`
 
 The web app is deployed as **execute as me** (`USER_DEPLOYING`) and **only myself** (`MYSELF`). The Calendar sidebar runs as the installed user, which for this personal deploy is the same person. There is no anonymous mode and no multi-tenant mode.
 
+The sidebar reads Script Properties, the same store `setupTsuke` writes. It does not keep a second spreadsheet id in User Properties. A test deployment runs the script HEAD. If that deployment was authorized before the manifest listed `drive.file`, the Sheets call from Calendar fails until the test deployment is removed and installed again. The card shows a fixed sentence for that case. The execution log receives the exception name and message, which can include the spreadsheet id, and the card does not.
+
 Anyone who can change the deployment to "Anyone" or "Anyone, even anonymous" can submit entries into the owner's sheet and write the owner's log calendar, because the app executes as the owner. The manifest sets `MYSELF`. The deploy dialog can override it. Do not override it. Do not share the spreadsheet with people you do not trust; a viewer of the sheet can read every row even if they cannot open the web app.
 
 Tsuke does not send ledger data to a server other than Google. It does not use `UrlFetchApp`. The approximate TWD cell calls `GOOGLEFINANCE`, which is evaluated by Google Sheets.

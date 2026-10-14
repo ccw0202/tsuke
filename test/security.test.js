@@ -105,6 +105,32 @@ test('the web app does not interpolate user text into HTML', () => {
   assert.equal(html.includes('document.write'), false);
 });
 
+test('service failures stay on a fixed sentence', () => {
+  const leaked = 'The caller does not have permission to access spreadsheet ' + 'a'.repeat(44);
+  const permission = security.serviceFailureMessage_(new Error(leaked), '側欄無法顯示');
+  assert.equal(permission.includes('a'.repeat(20)), false);
+  assert.equal(permission.includes('permission'), false);
+  assert.match(permission, /尚未取得帳本授權/);
+  const missing = new Error('找不到帳本。請先執行 setupTsuke。');
+  missing.userFacing = true;
+  assert.equal(security.serviceFailureMessage_(missing, '側欄無法顯示'), '找不到帳本。請先執行 setupTsuke。');
+  assert.equal(
+    security.serviceFailureMessage_(new TypeError("Cannot read properties of undefined (reading 'FILLED')"), '側欄無法顯示'),
+    '側欄無法顯示'
+  );
+});
+
+test('the calendar homepage uses the TextButtonStyle enum', () => {
+  const sidebar = fs.readFileSync('src/Sidebar.js', 'utf8');
+  assert.equal(sidebar.includes('newTextButtonStyle'), false);
+  assert.equal(sidebar.includes('CardService.TextButtonStyle.FILLED'), true);
+  const manifest = JSON.parse(fs.readFileSync('appsscript.json', 'utf8'));
+  assert.equal(manifest.addOns.common.openLinkUrlPrefixes.includes('https://docs.google.com/spreadsheets/'), true);
+  const readme = fs.readFileSync('README.md', 'utf8');
+  assert.equal(readme.includes('Tsuke 帳目'), true);
+  assert.equal(readme.includes('newTextButtonStyle'), false);
+});
+
 test('future sheets keep payment and account link columns', () => {
   assert.equal(schema.FUTURE_SHEETS.cards.headers.includes('卡片代碼'), true);
   assert.equal(schema.FUTURE_SHEETS.accounts.headers.includes('帳戶代碼'), true);

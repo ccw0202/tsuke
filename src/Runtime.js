@@ -5,7 +5,10 @@
 
 function logPrivate_(err) {
   try {
-    console.error(err && err.stack ? err.stack : err);
+    var name = err && err.name ? String(err.name) : 'Error';
+    var message = err && err.message ? String(err.message) : String(err);
+    console.error(name + ': ' + message);
+    if (err && err.stack) console.error(err.stack);
   } catch (ignore) {
     /* Logging is best-effort. */
   }

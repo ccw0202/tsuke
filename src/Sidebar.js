@@ -7,8 +7,7 @@ function onCalendarHomepage() {
     return [buildHomeCard_()];
   } catch (err) {
     logPrivate_(err);
-    var message = err && err.userFacing ? err.message : '帳本讀取失敗。請先在 Apps Script 執行 setupTsuke。';
-    return [noticeCard_('Tsuke', message)];
+    return [noticeCard_('Tsuke', serviceFailureMessage_(err, '側欄無法顯示。原因已寫入 Apps Script 執行記錄。'))];
   }
 }
 
@@ -75,7 +74,8 @@ function buildHomeCard_() {
   entry.addWidget(CardService.newTextParagraph().setText('沒有另外選擇時，會用這個項目上次的付款方式。句子裡若寫了付款代碼，以句子為準。'));
   entry.addWidget(CardService.newTextButton()
     .setText('記下')
-    .setTextButtonStyle(CardService.newTextButtonStyle.FILLED)
+    .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+    .setBackgroundColor('#9c3418')
     .setOnClickAction(CardService.newAction().setFunctionName('onSidebarAdd')));
   card.addSection(entry);
 
