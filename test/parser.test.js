@@ -125,6 +125,72 @@ test('longer keywords win', () => {
   assert.equal(result.category, '書');
 });
 
+test('AI subscriptions match, including X beside Han characters', () => {
+  assert.equal(parse('X訂閱 6690').category, 'AI工具');
+  assert.equal(parse('X 訂閱 100').category, 'AI工具');
+  assert.equal(parse('訂閱X 100').category, 'AI工具');
+  assert.equal(parse('Ｘ訂閱 100').category, 'AI工具');
+  assert.equal(parse('Grok 20').category, 'AI工具');
+  assert.equal(parse('SuperGrok 30').category, 'AI工具');
+  assert.equal(parse('Grok訂閱 20').category, 'AI工具');
+  assert.equal(parse('X 6690').category, '日常');
+  assert.equal(parse('Xbox 100').category, '日常');
+  assert.equal(parse('box 10').category, '日常');
+  assert.equal(parse('extra 10').category, '日常');
+  assert.equal(parse('next 10').category, '日常');
+  assert.equal(parse('X-Men 100').category, '日常');
+  assert.equal(parse('Max訂閱 100').category, '日常');
+});
+
+test('a pinned category overrides the guess and an explicit token overrides the pin', () => {
+  const categories = fixtureCategories();
+  const guessed = parse('X訂閱 6690');
+  assert.equal(parser.chooseCategory_(guessed, {
+    categoryPinned: true,
+    categoryName: '日常'
+  }, categories), '日常');
+  const explicit = parse('分類:吃 X訂閱 6690');
+  assert.equal(explicit.categorySource, 'explicit');
+  assert.equal(parser.chooseCategory_(explicit, {
+    categoryPinned: true,
+    categoryName: '日常'
+  }, categories), '吃');
+  assert.equal(parser.chooseCategory_(guessed, {
+    categoryPinned: true,
+    categoryName: '不存在'
+  }, categories), 'AI工具');
+  assert.equal(parser.chooseCategory_(guessed, {
+    categoryPinned: false,
+    categoryName: '日常'
+  }, categories), 'AI工具');
+});
+
+test('setup can add missing AI keywords without dropping or duplicating existing ones', () => {
+  const defaults = schema.DEFAULT_CATEGORIES.find((row) => row[0] === 'AI工具')[1].split(',');
+  ['X', 'Grok', 'SuperGrok', 'ChatGPT', 'Claude', 'Cursor', 'Gemini', 'Perplexity', 'X訂閱', 'OpenAI', 'AI'].forEach((word) => {
+    assert.equal(defaults.includes(word), true, word);
+  });
+  const merged = parser.mergeKeywordList_('ChatGPT,MyBot,chatgpt', defaults);
+  assert.equal(merged.changed, true);
+  assert.equal(merged.text.startsWith('ChatGPT,MyBot,chatgpt,'), true);
+  assert.equal(merged.text.split(',').filter((word) => word.toLowerCase() === 'chatgpt').length, 2);
+  assert.equal(merged.text.split(',').includes('Grok'), true);
+  assert.equal(merged.text.split(',').includes('MyBot'), true);
+  const again = parser.mergeKeywordList_(merged.text, defaults);
+  assert.equal(again.changed, false);
+  assert.equal(again.text, merged.text);
+});
+
+test('category chips keep only short safe names', () => {
+  const chips = parser.chipCategories_([
+    { name: '吃' },
+    { name: '吃<script>' },
+    { name: '交通' },
+    { name: '吃' }
+  ]);
+  assert.deepEqual(chips, [{ name: '吃' }, { name: '交通' }]);
+});
+
 test('relative and month-day dates', () => {
   assert.equal(parse('昨天 早餐 90').date, '2026-10-13');
   assert.equal(parse('前天 咖啡 70').date, '2026-10-12');

@@ -383,12 +383,12 @@ function guessCategory(name, categories, fallbackCategory) {
   var bestLength = 0;
   var bestName = fallback;
   var source = 'fallback';
-  var haystack = String(name || '');
+  var haystack = nfkc_(String(name || ''));
   var folded = haystack.toLowerCase();
   for (var i = 0; i < categories.length; i++) {
     var keywords = categories[i].keywords || [];
     for (var k = 0; k < keywords.length; k++) {
-      var keyword = String(keywords[k] || '').trim();
+      var keyword = nfkc_(String(keywords[k] || '').trim());
       if (!keyword || keyword.length <= bestLength) continue;
       if (keywordMatches_(folded, haystack, keyword)) {
         bestLength = keyword.length;
@@ -400,7 +400,21 @@ function guessCategory(name, categories, fallbackCategory) {
   return { category: bestName, source: source };
 }
 
+function nfkc_(text) {
+  var value = String(text || '');
+  try {
+    return value.normalize('NFKC');
+  } catch (err) {
+    return value;
+  }
+}
+
+/**
+ * A keyword that is exactly X matches only beside a Han character, so X訂閱
+ * and 訂閱 X match while Xbox, Max訂閱, and a bare X do not.
+ */
 function keywordMatches_(folded, original, keyword) {
+  if (keyword.toLowerCase() === 'x') return cjkAdjacentX_(original);
   if (/[A-Za-z0-9]/.test(keyword)) {
     var pattern = new RegExp(
       '(^|[^A-Za-z0-9])' + escapeRegExp_(keyword.toLowerCase()) + '([^A-Za-z0-9]|$)',
@@ -409,6 +423,73 @@ function keywordMatches_(folded, original, keyword) {
     return pattern.test(folded);
   }
   return original.indexOf(keyword) !== -1;
+}
+
+function cjkAdjacentX_(text) {
+  return /(?:^|[^A-Za-z0-9])[XxＸｘ]\s*[\u3400-\u9fff]/.test(text) ||
+    /[\u3400-\u9fff]\s*[XxＸｘ](?:[^A-Za-z0-9]|$)/.test(text);
+}
+
+function isChipCategoryName_(name) {
+  return /^[\u4e00-\u9fffA-Za-z0-9]{1,20}$/.test(String(name || ''));
+}
+
+function knownChipCategory_(label, categories) {
+  var wanted = String(label || '').trim().toLowerCase();
+  if (!wanted) return '';
+  var list = categories || [];
+  for (var i = 0; i < list.length; i++) {
+    var name = String(list[i] && list[i].name || '').trim();
+    if (name.toLowerCase() !== wanted) continue;
+    return isChipCategoryName_(name) ? name : '';
+  }
+  return '';
+}
+
+function chooseCategory_(parsed, options, categories) {
+  if (!parsed) return '';
+  if (parsed.categorySource === 'explicit') return parsed.category;
+  var opts = options || {};
+  if (opts.categoryPinned === true) {
+    var pinned = knownChipCategory_(opts.categoryName, categories);
+    if (pinned) return pinned;
+  }
+  return parsed.category;
+}
+
+function chipCategories_(categories) {
+  var out = [];
+  var seen = {};
+  var list = categories || [];
+  for (var i = 0; i < list.length && out.length < 24; i++) {
+    var name = String(list[i] && list[i].name || '').trim();
+    if (!isChipCategoryName_(name) || seen[name]) continue;
+    seen[name] = true;
+    out.push({ name: name });
+  }
+  return out;
+}
+
+function mergeKeywordList_(existingText, defaults) {
+  var parts = String(existingText == null ? '' : existingText).split(/[,，]/).map(function (word) {
+    return String(word || '').trim();
+  }).filter(Boolean);
+  var seen = {};
+  parts.forEach(function (word) {
+    seen[word.toLowerCase()] = true;
+  });
+  var added = [];
+  (defaults || []).forEach(function (word) {
+    var clean = String(word || '').trim();
+    if (!clean) return;
+    var key = clean.toLowerCase();
+    if (seen[key]) return;
+    seen[key] = true;
+    added.push(clean);
+  });
+  if (!added.length) return { text: String(existingText == null ? '' : existingText), changed: false };
+  var base = parts.join(',');
+  return { text: base ? base + ',' + added.join(',') : added.join(','), changed: true };
 }
 
 function escapeRegExp_(value) {
@@ -614,6 +695,11 @@ if (typeof module !== 'undefined' && module.exports) {
     isAllowedCurrency: isAllowedCurrency,
     isTransferCode: isTransferCode,
     guessCategory: guessCategory,
+    chooseCategory_: chooseCategory_,
+    chipCategories_: chipCategories_,
+    knownChipCategory_: knownChipCategory_,
+    mergeKeywordList_: mergeKeywordList_,
+    isChipCategoryName_: isChipCategoryName_,
     resolveDateToken: resolveDateToken,
     shiftIsoDate: shiftIsoDate,
     todayIsoInTimeZone: todayIsoInTimeZone,

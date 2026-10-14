@@ -47,6 +47,10 @@ Tokens are separated by spaces.
 
 Categories shipped in the template: 吃, 公益, 書, 日常, 贈禮, AI工具, 娛樂. Keyword lists live in the 分類 sheet. The longest matching keyword wins. If nothing matches, the category is 日常.
 
+AI工具 includes ChatGPT, OpenAI, Claude, Gemini, Cursor, Copilot, Midjourney, Perplexity, AI, X, Grok, and SuperGrok, plus those names with 訂閱 (`X訂閱`, `Grok訂閱`, and the rest). A keyword that is exactly `X` matches only beside a Han character, with or without a space: `X訂閱`, `X 訂閱`, `訂閱X`, and fullwidth `Ｘ訂閱`. It does not match inside a Latin word, so Xbox, box, extra, next, X-Men, and Max訂閱 stay unmatched. A line whose name is only X, such as `X 6690`, stays 日常. Running `setupTsuke` again adds any of these default keywords that are missing from the existing AI工具 row. It leaves keywords you added, and it does not add a second ChatGPT when one is already there in any letter case.
+
+The phone page draws one button per category from that sheet, up to 24. A name is shown only when it is 1 to 20 letters, digits, or Han characters. The guessed category is selected while you type. Tapping a button keeps your choice. A `分類:` or `[分類]` token still wins. Tap a recent row to change the name, amount, currency, category, or payment. Delete asks for a second tap, 確定刪除, then writes 已刪除 in 狀態 and clears that row's event id. The row stays, so clearing 狀態 brings it back. While 花費日曆 is on, the edit updates the matching event on 「Tsuke 花費」 and delete removes that event. While it is off, that calendar is left alone. The page sends the row number and the created time, and never the calendar event id. A request is refused when that time does not match the row.
+
 ### Payment buttons
 
 The web app loads 付款方式 and draws one button per enabled row (up to 24). The template ships four **example** rows:
@@ -225,6 +229,10 @@ ChatGPT 20 USD cube
 金額必填。沒寫幣別就是 TWD。分類會用「分類」表的關鍵字猜，猜不到就歸在日常。類別有：吃、公益、書、日常、贈禮、AI工具、娛樂。
 
 付款方式不用打進句子。輸入框下面有按鈕，清單來自「付款方式」表，可以自己增刪改。範本裡的「範例信用卡 Cube」「範例信用卡 EF」只是例子，請改成你自己的叫法，不要把卡號或末四碼寫進表裡或提交到 git。Cube 會先被選取。同一個項目會記住上次的付款方式，下次自動預選。句子裡如果寫了代碼（例如 `現金` 或 `甲銀行轉帳`），以句子為準。
+
+分類也有按鈕，清單來自「分類」表。打字時會先選中猜到的分類，點一下就改成你要的。句子裡的 `分類:吃` 或 `[吃]` 仍然優先。AI工具預設認 X、Grok、SuperGrok、ChatGPT、Claude、Cursor、Gemini、Perplexity，也認後面加「訂閱」的寫法。單獨的 X 只在旁邊有中文時算，例如 `X訂閱`、`X 訂閱`；`X 6690`、Xbox、Max訂閱不會算進去。已經有帳本的話，再執行一次 `setupTsuke` 會把缺的預設關鍵字補進 AI工具，不會清掉你自己加的詞。
+
+最近的帳可以點開，改名稱、金額、幣別、分類或付款方式。刪除要再按一次「確定刪除」，然後把「狀態」寫成已刪除並清掉這一列的事件 id，列還留在表上。花費日曆開著時，編輯會更新「Tsuke 花費」上的事件，刪除會移掉那個事件；關著就不動日曆。網頁送出的是列號和建立時間，拿不到事件 id。建立時間對不上就會拒絕。
 
 手機網頁就是記帳，沒有分頁。
 
