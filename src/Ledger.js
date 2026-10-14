@@ -256,7 +256,7 @@ function loadLedgerContext_() {
 function readAllEntries_() {
   requireAdvancedServices_();
   var id = requireLedgerId_();
-  return entriesFromRows(sheetValues_(id, SHEET_NAMES.ENTRIES + '!A2:' + columnLetter_(ENTRY_HEADERS.length)));
+  return activeEntries_(entriesFromRows(sheetValues_(id, SHEET_NAMES.ENTRIES + '!A2:' + columnLetter_(ENTRY_HEADERS.length))));
 }
 
 function nextEntryRow_(id) {

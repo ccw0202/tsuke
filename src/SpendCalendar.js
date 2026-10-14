@@ -72,17 +72,19 @@ function spendShiftIsoDate_(iso, days) {
 /**
  * rows: sheet entries that should exist. remoteEvents: {id, marker} already on the spend calendar.
  * Events without the Tsuke marker are left alone, including anything on another calendar.
+ * Rows already marked 已刪除 are skipped so a calendar delete is not written back as a new event.
  */
 function planSpendSync_(rows, remoteEvents) {
   var remoteById = {};
   (remoteEvents || []).forEach(function (event) {
-    if (!event || !event.id) return;
+    if (!event || !event.id || event.status === 'cancelled') return;
     remoteById[event.id] = event;
   });
   var referenced = {};
   var actions = [];
   (rows || []).forEach(function (row) {
-    if (!row || !/^\d{4}-\d{2}-\d{2}$/.test(String(row.date || ''))) return;
+    if (!row || row.deleted === true || row.status === spendDeletedMark_()) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(row.date || ''))) return;
     if (!Number.isInteger(row.rowNumber) || row.rowNumber < 2) return;
     var known = row.eventId && remoteById[row.eventId] ? row.eventId : '';
     if (known) {
@@ -97,6 +99,33 @@ function planSpendSync_(rows, remoteEvents) {
     if (remoteById[id].marker === SPEND_MARKER_ && !referenced[id]) remove.push(id);
   });
   return { actions: actions, remove: remove };
+}
+
+/**
+ * remoteEvents include cancelled events from 「Tsuke 花費」.
+ * A row is soft-deleted only when its stored event id is one of those cancelled ids.
+ * An id that is simply absent is not a delete: a replaced calendar has none of the
+ * old events, and those rows should be recreated rather than erased.
+ */
+function planSpendDeleteSync_(rows, remoteEvents) {
+  var cancelled = {};
+  (remoteEvents || []).forEach(function (event) {
+    if (!event || event.status !== 'cancelled' || !event.id) return;
+    cancelled[event.id] = true;
+  });
+  var deletes = [];
+  (rows || []).forEach(function (row) {
+    if (!row || row.deleted === true || row.status === spendDeletedMark_()) return;
+    if (!Number.isInteger(row.rowNumber) || row.rowNumber < 2 || row.rowNumber > 100000) return;
+    if (!row.eventId || !cancelled[row.eventId]) return;
+    deletes.push({ rowNumber: row.rowNumber });
+  });
+  return deletes;
+}
+
+function spendDeletedMark_() {
+  if (typeof ENTRY_STATUS_DELETED !== 'undefined') return ENTRY_STATUS_DELETED;
+  return require('./Schema.js').ENTRY_STATUS_DELETED;
 }
 
 function ensureSpendCalendar_(title) {
@@ -134,11 +163,22 @@ function syncSpendCalendar() {
 function syncSpendCalendarUnlocked_() {
   var ctx = loadLedgerContext_();
   if (!ctx.settings.spendEvents) {
-    return { ok: true, message: '花費日曆已關閉。帳目仍會記，不會改日曆。', created: 0, updated: 0, removed: 0 };
+    return { ok: true, message: '花費日曆已關閉。帳目仍會記，不會改日曆，也不會把帳標成已刪除。', created: 0, updated: 0, removed: 0, deleted: 0 };
   }
   var calendarId = ensureSpendCalendar_(SPEND_CALENDAR_NAME);
   var rows = readSpendRows_(ctx.id, ctx.settings.timeZone);
-  var remote = listSpendEvents_(calendarId);
+  var remoteAll = listSpendEvents_(calendarId, true);
+  var deletes = planSpendDeleteSync_(rows, remoteAll);
+  writeSpendDeletes_(ctx.id, deletes);
+  var dropped = {};
+  deletes.forEach(function (item) { dropped[item.rowNumber] = true; });
+  rows.forEach(function (row) {
+    if (!dropped[row.rowNumber]) return;
+    row.deleted = true;
+    row.status = spendDeletedMark_();
+    row.eventId = '';
+  });
+  var remote = remoteAll.filter(function (event) { return event.status !== 'cancelled'; });
   var plan = planSpendSync_(rows, remote);
   var created = 0;
   var updated = 0;
@@ -173,10 +213,50 @@ function syncSpendCalendarUnlocked_() {
   writeEventIds_(ctx.id, idWrites);
   return {
     ok: true,
-    message: '已同步花費日曆：新增 ' + created + '、更新 ' + updated + '、刪除 ' + removed + '。',
+    message: '已同步花費日曆：新增 ' + created + '、更新 ' + updated + '、刪除 ' + removed + '、帳本標記 ' + deletes.length + '。',
     created: created,
     updated: updated,
-    removed: removed
+    removed: removed,
+    deleted: deletes.length
+  };
+}
+
+function syncDeletedSpendEvents() {
+  try {
+    return withScriptLock_(function () {
+      return syncDeletedSpendEventsUnlocked_();
+    });
+  } catch (err) {
+    if (err && err.userFacing) return { ok: false, message: err.message };
+    logPrivate_(err);
+    return { ok: false, message: '花費日曆沒有核對。' };
+  }
+}
+
+function syncDeletedSpendEventsUnlocked_() {
+  var ctx = loadLedgerContext_();
+  if (!ctx.settings.spendEvents) {
+    return { ok: true, message: '花費日曆已關閉，沒有改帳本。', deleted: 0 };
+  }
+  var calendarId = PropertiesService.getScriptProperties().getProperty(PROP_KEYS.SPEND_CALENDAR_ID) || '';
+  if (!isCalendarIdShape_(calendarId)) {
+    return { ok: true, message: '還沒有花費日曆，沒有改帳本。', deleted: 0 };
+  }
+  var remote;
+  try {
+    remote = listSpendEvents_(calendarId, true);
+  } catch (err) {
+    logPrivate_(err);
+    return { ok: false, message: '花費日曆沒有核對。' };
+  }
+  var rows = readSpendRows_(ctx.id, ctx.settings.timeZone);
+  var deletes = planSpendDeleteSync_(rows, remote);
+  writeSpendDeletes_(ctx.id, deletes);
+  if (!deletes.length) return { ok: true, message: '沒有需要標記的帳。', deleted: 0 };
+  return {
+    ok: true,
+    message: '已把 ' + deletes.length + ' 筆標成已刪除。把「狀態」清掉就能還原，再執行 syncSpendCalendar 會把事件加回去。',
+    deleted: deletes.length
   };
 }
 
@@ -211,19 +291,24 @@ function eventIdFromInsert_(created) {
   return isEventIdShape_(id) ? id : '';
 }
 
-function listSpendEvents_(calendarId) {
+function listSpendEvents_(calendarId, showDeleted) {
   var out = [];
   var pageToken = '';
   var pages = 0;
   while (pages < 20) {
-    var options = { maxResults: 250, showDeleted: false, singleEvents: true };
+    var options = { maxResults: 250, showDeleted: showDeleted === true, singleEvents: true };
     if (pageToken) options.pageToken = pageToken;
     var response = Calendar.Events.list(calendarId, options);
     ((response && response.items) || []).forEach(function (item) {
-      if (!item || !item.id || item.status === 'cancelled') return;
-      if (!isEventIdShape_(item.id)) return;
+      if (!item || !item.id || !isEventIdShape_(item.id)) return;
+      var status = item.status === 'cancelled' ? 'cancelled' : 'confirmed';
+      if (showDeleted !== true && status === 'cancelled') return;
       var priv = item.extendedProperties && item.extendedProperties.private;
-      out.push({ id: item.id, marker: priv && priv.tsuke === SPEND_MARKER_ ? SPEND_MARKER_ : '' });
+      out.push({
+        id: item.id,
+        status: status,
+        marker: priv && priv.tsuke === SPEND_MARKER_ ? SPEND_MARKER_ : ''
+      });
     });
     pageToken = response && response.nextPageToken || '';
     if (!pageToken) break;
@@ -244,6 +329,48 @@ function readSpendRows_(spreadsheetId, timeZone) {
     rows.push(entry);
   });
   return rows;
+}
+
+function ensureStatusHeader_(spreadsheetId) {
+  var column = columnLetter_(ENTRY_COL.STATUS);
+  var title = ENTRY_HEADERS[ENTRY_COL.STATUS - 1];
+  var current = sheetValues_(spreadsheetId, SHEET_NAMES.ENTRIES + '!' + column + '1');
+  if (current[0] && String(current[0][0] || '') === title) return;
+  Sheets.Spreadsheets.Values.update(
+    { values: [[title]] },
+    spreadsheetId,
+    SHEET_NAMES.ENTRIES + '!' + column + '1',
+    { valueInputOption: 'RAW' }
+  );
+}
+
+function writeSpendDeletes_(spreadsheetId, deletes) {
+  var usable = (deletes || []).filter(function (item) {
+    return item && Number.isInteger(item.rowNumber) && item.rowNumber >= 2 && item.rowNumber <= 100000;
+  });
+  if (!usable.length) return;
+  ensureStatusHeader_(spreadsheetId);
+  var statusCol = columnLetter_(ENTRY_COL.STATUS);
+  var eventCol = columnLetter_(ENTRY_COL.EVENT_ID);
+  var mark = guardSheetText(spendDeletedMark_(), 20);
+  var data = [];
+  usable.forEach(function (item) {
+    data.push({
+      range: SHEET_NAMES.ENTRIES + '!' + statusCol + item.rowNumber,
+      values: [[mark]]
+    });
+    data.push({
+      range: SHEET_NAMES.ENTRIES + '!' + eventCol + item.rowNumber,
+      values: [['']]
+    });
+  });
+  var step = 200;
+  for (var offset = 0; offset < data.length; offset += step) {
+    Sheets.Spreadsheets.Values.batchUpdate({
+      valueInputOption: 'RAW',
+      data: data.slice(offset, offset + step)
+    }, spreadsheetId);
+  }
 }
 
 function writeEventIds_(spreadsheetId, pairs) {
@@ -268,6 +395,7 @@ if (typeof module !== 'undefined' && module.exports) {
     expenseEventTitle_: expenseEventTitle_,
     spendEventBody_: spendEventBody_,
     addClockMinutes_: addClockMinutes_,
-    planSpendSync_: planSpendSync_
+    planSpendSync_: planSpendSync_,
+    planSpendDeleteSync_: planSpendDeleteSync_
   };
 }

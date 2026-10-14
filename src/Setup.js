@@ -35,9 +35,16 @@ function setupTsuke() {
         logPrivate_(err);
         spendNote = '花費日曆尚未建立。請確認已授權日曆後，再執行一次 setupTsuke。';
       }
+      var triggerNote = '已安排每小時核對「' + SPEND_CALENDAR_NAME + '」。';
+      try {
+        ensureSpendDeleteTrigger_();
+      } catch (err) {
+        logPrivate_(err);
+        triggerNote = '還沒有排程核對花費日曆。請再執行一次 setupTsuke，或手動執行 syncDeletedSpendEvents。';
+      }
       return {
         ok: true,
-        message: (created ? '已建立帳本。' : '已檢查帳本。') + '付款方式的卡片名稱是範例，請改成你自己的。' + logNote + spendNote + planNote,
+        message: (created ? '已建立帳本。' : '已檢查帳本。') + '付款方式的卡片名稱是範例，請改成你自己的。' + logNote + spendNote + planNote + triggerNote,
         spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/' + id + '/edit'
       };
     });
@@ -156,7 +163,7 @@ function seedLedgerValues_(id) {
       SHEET_NAMES.MEMORY + '!A1',
       SHEET_NAMES.SETTINGS + '!A1',
       SHEET_NAMES.SETTINGS + '!A2:A30',
-      SHEET_NAMES.ENTRIES + '!' + columnLetter_(ENTRY_COL.TIME) + '1:' + columnLetter_(ENTRY_COL.EVENT_ID) + '1'
+      SHEET_NAMES.ENTRIES + '!' + columnLetter_(ENTRY_COL.TIME) + '1:' + columnLetter_(ENTRY_COL.STATUS) + '1'
     ],
     valueRenderOption: 'FORMULA'
   });
@@ -175,6 +182,17 @@ function seedLedgerValues_(id) {
       SHEET_NAMES.ENTRIES + '!' + columnLetter_(ENTRY_COL.TIME) + '1:' + columnLetter_(ENTRY_COL.EVENT_ID) + '1',
       [[timeHeader, eventIdHeader]]
     );
+  }
+  var statusTitle = ENTRY_HEADERS[ENTRY_COL.STATUS - 1];
+  if (firstCell_(cells[1]) && String(eventHeader[2] || '') !== statusTitle) {
+    put(SHEET_NAMES.ENTRIES + '!' + columnLetter_(ENTRY_COL.STATUS) + '1', [[statusTitle]]);
+    var migratedMonthly = monthlySheetFormulas();
+    put(
+      SHEET_NAMES.MONTHLY + '!A4:J4',
+      [[migratedMonthly.months].concat(migratedMonthly.categories, [migratedMonthly.total, migratedMonthly.count])]
+    );
+    var migratedTags = tagTotalFormulas();
+    put(SHEET_NAMES.TAGS + '!E2:F2', [[migratedTags.total, migratedTags.count]]);
   }
   var monthly = monthlySheetFormulas();
   if (!firstCell_(cells[2])) {
@@ -208,6 +226,15 @@ function seedLedgerValues_(id) {
   Sheets.Spreadsheets.Values.batchUpdate({ valueInputOption: 'USER_ENTERED', data: data }, id);
 }
 
+function ensureSpendDeleteTrigger_() {
+  var handler = 'syncDeletedSpendEvents';
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === handler) return;
+  }
+  ScriptApp.newTrigger(handler).timeBased().everyHours(1).create();
+}
+
 function settingSeedRows_() {
   return [
     [SETTING_KEYS.currency, DEFAULT_SETTINGS.currency, '記帳時沒寫幣別就用這個。'],
@@ -215,7 +242,7 @@ function settingSeedRows_() {
     [SETTING_KEYS.logMarker, DEFAULT_SETTINGS.logMarker, '句子用這個詞開頭就寫進日誌日曆。'],
     [SETTING_KEYS.calendarName, DEFAULT_SETTINGS.calendarName, '第一次建立日誌日曆時使用的名稱。'],
     [SETTING_KEYS.timeZone, DEFAULT_SETTINGS.timeZone, '「今天」的時區。'],
-    [SETTING_KEYS.spendEvents, DEFAULT_SETTINGS.spendEvents, 'TRUE 時每一筆帳會在「Tsuke 花費」日曆建事件。改成 FALSE 就停止，不會動到主日曆。改完舊帳後執行 syncSpendCalendar。']
+    [SETTING_KEYS.spendEvents, DEFAULT_SETTINGS.spendEvents, 'TRUE 時每一筆帳會在「Tsuke 花費」日曆建事件。改成 FALSE 就停止，不會動到主日曆，也不會因為日曆上的刪除去改帳本。改完舊帳後執行 syncSpendCalendar。']
   ];
 }
 
@@ -248,11 +275,11 @@ function formatLedger_(id, meta) {
   var entries = meta[SHEET_NAMES.ENTRIES];
   if (entries) {
     var entryId = entries.properties.sheetId;
-    requests = requests.concat(textColumns_(entryId, [2, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]));
+    requests = requests.concat(textColumns_(entryId, [2, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]));
     requests.push(dateColumn_(entryId, ENTRY_COL.DATE));
     requests.push(numberColumn_(entryId, ENTRY_COL.AMOUNT));
     requests.push(numberColumn_(entryId, ENTRY_COL.TWD));
-    requests = requests.concat(columnWidths_(entryId, [110, 160, 90, 70, 110, 80, 110, 150, 110, 110, 140, 180, 140, 160, 80, 180]));
+    requests = requests.concat(columnWidths_(entryId, [110, 160, 90, 70, 110, 80, 110, 150, 110, 110, 140, 180, 140, 160, 80, 180, 90]));
   }
   var payments = meta[SHEET_NAMES.PAYMENTS];
   if (payments) requests = requests.concat(textColumns_(payments.properties.sheetId, [1, 2, 4, 5, 6, 7, 8]));

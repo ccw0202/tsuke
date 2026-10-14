@@ -55,7 +55,8 @@ test('sync updates stored events, creates missing ones, and deletes only Tsuke o
   const plan = spend.planSpendSync_([
     { rowNumber: 2, date: '2026-10-14', name: '早餐', amount: 80, currency: 'TWD', eventId: 'eventKeep1' },
     { rowNumber: 3, date: '2026-10-14', name: '午餐', amount: 120, currency: 'TWD', eventId: '' },
-    { rowNumber: 4, date: '2026-10-13', name: '舊的', amount: 10, currency: 'TWD', eventId: 'missing999' }
+    { rowNumber: 4, date: '2026-10-13', name: '舊的', amount: 10, currency: 'TWD', eventId: 'missing999' },
+    { rowNumber: 5, date: '2026-10-14', name: '已刪', amount: 30, currency: 'TWD', eventId: '', deleted: true }
   ], [
     { id: 'eventKeep1', marker: 'spend' },
     { id: 'orphan123', marker: 'spend' },
@@ -64,6 +65,34 @@ test('sync updates stored events, creates missing ones, and deletes only Tsuke o
   assert.deepEqual(plan.actions.map((action) => action.op), ['update', 'create', 'create']);
   assert.equal(plan.actions[0].eventId, 'eventKeep1');
   assert.deepEqual(plan.remove, ['orphan123']);
+});
+
+test('a cancelled spend event soft-deletes only the matching active row', () => {
+  const rows = [
+    { rowNumber: 2, eventId: 'goneEvt1' },
+    { rowNumber: 3, eventId: 'keptEvt1' },
+    { rowNumber: 4, eventId: 'missing999' },
+    { rowNumber: 5, eventId: 'goneEvt2', deleted: true, status: '已刪除' },
+    { rowNumber: 6, eventId: '' },
+    { rowNumber: 1, eventId: 'goneEvt1' }
+  ];
+  const remote = [
+    { id: 'goneEvt1', status: 'cancelled', marker: 'spend' },
+    { id: 'keptEvt1', status: 'confirmed', marker: 'spend' },
+    { id: 'goneEvt2', status: 'cancelled', marker: 'spend' },
+    { id: 'handmade9', status: 'cancelled', marker: '' }
+  ];
+  assert.deepEqual(spend.planSpendDeleteSync_(rows, remote), [{ rowNumber: 2 }]);
+  const outbound = spend.planSpendSync_([
+    { rowNumber: 2, date: '2026-10-14', name: '早餐', amount: 80, currency: 'TWD', eventId: 'keptEvt1' },
+    { rowNumber: 3, date: '2026-10-14', name: '已刪', amount: 30, currency: 'TWD', eventId: 'liveEvt1', status: '已刪除' }
+  ], [
+    { id: 'keptEvt1', status: 'confirmed', marker: 'spend' },
+    { id: 'liveEvt1', status: 'confirmed', marker: 'spend' },
+    { id: 'goneEvt1', status: 'cancelled', marker: 'spend' }
+  ]);
+  assert.deepEqual(outbound.actions.map((action) => action.op), ['update']);
+  assert.deepEqual(outbound.remove, ['liveEvt1']);
 });
 
 test('the event id column is stored only when it has a safe shape', () => {
@@ -88,6 +117,9 @@ test('the event id column is stored only when it has a safe shape', () => {
   assert.equal(row.length, schema.ENTRY_HEADERS.length);
   assert.equal(row[schema.ENTRY_COL.TIME - 1], '08:30');
   assert.equal(row[schema.ENTRY_COL.EVENT_ID - 1], '');
+  assert.equal(row[schema.ENTRY_COL.STATUS - 1], '');
+  assert.equal(schema.ENTRY_COL.STATUS, 17);
+  assert.equal(schema.ENTRY_STATUS_DELETED, '已刪除');
   assert.equal(schema.ENTRY_COL.TWD, 5);
   const kept = security.buildEntryRow({
     row: 4,
@@ -134,6 +166,14 @@ test('the event id column is stored only when it has a safe shape', () => {
   ]]);
   assert.equal(loaded[0].time, '08:30');
   assert.equal(loaded[0].eventId, 'abcde_12');
+  assert.equal(loaded[0].deleted, false);
+  const hidden = match.entriesFromRows([[
+    '2026-10-14', '午餐', 120, 'TWD', 120, '吃', 'cube', '現金', '', '', '', '', '午餐', '2026-10-14 09:00:00', '', 'eventKeep1', '已刪除'
+  ]]);
+  assert.equal(hidden[0].deleted, true);
+  assert.equal(hidden[0].status, '已刪除');
+  assert.equal(hidden[0].eventId, 'eventKeep1');
+  assert.deepEqual(match.activeEntries_(loaded.concat(hidden)).map((entry) => entry.name), ['早餐']);
 });
 
 test('the manifest still does not ask for the main calendar', () => {
@@ -144,5 +184,15 @@ test('the manifest still does not ask for the main calendar', () => {
   const source = fs.readFileSync('src/SpendCalendar.js', 'utf8');
   assert.equal(source.includes('primary'), false);
   assert.equal(source.includes('CalendarApp'), false);
+  assert.equal(source.includes('onEventUpdated'), false);
   assert.equal(schema.SPEND_CALENDAR_NAME, 'Tsuke 花費');
+  const setup = fs.readFileSync('src/Setup.js', 'utf8');
+  assert.equal(setup.includes('onEventUpdated'), false);
+  assert.equal(setup.includes('forUserCalendar'), false);
+  assert.match(setup, /timeBased\(\)\.everyHours\(1\)/);
+  assert.match(source, /function syncDeletedSpendEvents\(/);
+  assert.equal(manifest.oauthScopes.includes('https://www.googleapis.com/auth/script.scriptapp'), false);
+  const readme = fs.readFileSync('README.md', 'utf8');
+  assert.equal(readme.includes('syncDeletedSpendEvents'), true);
+  assert.equal(readme.includes('已刪除'), true);
 });

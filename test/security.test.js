@@ -81,6 +81,8 @@ test('summary formulas are built from column letters, not user text', () => {
   assert.equal(blob.includes('IMPORTDATA'), false);
   assert.match(monthly.months, /帳目!A2:A/);
   assert.match(monthly.total, /帳目!E2:E/);
+  assert.match(monthly.total, /帳目!Q2:Q<>"已刪除"/);
+  assert.match(tags.total, /帳目!Q2:Q<>"已刪除"/);
   assert.equal(monthly.categories.length, schema.CATEGORY_NAMES.length);
   assert.match(tags.total, /帳目!K2:K/);
   monthly.categories.forEach((formula, index) => {
