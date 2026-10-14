@@ -102,17 +102,33 @@ Node 18 or newer. The tests do not call Google. They cover the parser, payment p
 
    `clasp login` writes `~/.clasprc.json`. That file is credentials. Do not commit it. This repo gitignores `.clasprc.json` and `.clasp.json`.
 
-2. Create a standalone script and push this folder:
+2. Create the standalone script in a temporary directory, then push this repo. `clasp create` writes a default `appsscript.json` into `--rootDir` (it reports that it cloned one file). Running it with `--rootDir .` replaces this repo's manifest, so the Sheets and Calendar advanced services, the three scopes, and `Asia/Taipei` never reach the project. `setupTsuke` then fails with `ReferenceError: Sheets is not defined`.
+
+   From the repo root:
 
    ```bash
-   cp .clasp.json.example .clasp.json
-   clasp create --title "Tsuke" --type standalone --rootDir .
+   mkdir -p /tmp/tsuke-clasp-create
+   clasp create --title "Tsuke" --type standalone --rootDir /tmp/tsuke-clasp-create
+   node -e '
+   const fs = require("fs");
+   const created = JSON.parse(fs.readFileSync("/tmp/tsuke-clasp-create/.clasp.json", "utf8"));
+   fs.writeFileSync(".clasp.json", JSON.stringify({ scriptId: created.scriptId, rootDir: "." }, null, 2) + "\n");
+   '
    clasp push
    ```
 
-   If `clasp create` already wrote `.clasp.json`, keep that file and do not copy the example over it. The script id in `.clasp.json` stays on your machine.
+   That writes only the new script id into `.clasp.json` (`rootDir` stays `.`). `.clasp.json` stays on your machine. Do not commit it, and do not copy `.clasp.json.example` over a file clasp already created.
 
-3. In the Apps Script editor, confirm the manifest lists the Sheets API (`Sheets`) and the Calendar API (`Calendar`) under Services. `clasp push` sends `enabledAdvancedServices`. If a run says a service is disabled, add those two advanced services in the editor and run setup again.
+   If you already ran `clasp create` inside this repo, keep the `.clasp.json` it wrote and upload the committed manifest:
+
+   ```bash
+   git checkout -- appsscript.json
+   clasp push
+   ```
+
+   `git status` should no longer list `appsscript.json`. Leave the clasp-generated manifest uncommitted. Run `setupTsuke` again. If the consent screen already ran against the default scopes, accept it again so the three scopes in `appsscript.json` are granted.
+
+3. `clasp push` sends `enabledAdvancedServices` from the committed `appsscript.json` (Sheets API as `Sheets`, Calendar API as `Calendar`). If `setupTsuke` says those services are missing, the Apps Script project is still on the default manifest: restore and push as in step 2, then run setup again.
 
 4. Run `setupTsuke` from the editor and accept the consent screen. The script asks for three scopes, listed in [SECURITY.md](SECURITY.md). It creates a spreadsheet named **Tsuke 帳本** in your Drive and stores that id in Script Properties. It also creates the **Tsuke 日誌** calendar the first time it can. The function's return value includes the spreadsheet URL. That URL is private. Do not paste it into git, a screenshot, or a public issue.
 
@@ -195,8 +211,30 @@ ChatGPT 20 USD cube
 ### 部署
 
 1. `npm install -g @google/clasp`，然後 `clasp login`。不要把 `.clasprc.json` 或含有 script id 的 `.clasp.json` 提交上去。
-2. `clasp create --title "Tsuke" --type standalone --rootDir .`，再 `clasp push`。
-3. 在編輯器執行 `setupTsuke` 並授權。會在你的雲端硬碟建立「Tsuke 帳本」。回傳的試算表網址只留給自己，不要貼到公開的地方。
+2. 在暫存目錄建立指令碼，再從這個 repo push。`clasp create --rootDir .` 會用預設 manifest 蓋掉 `appsscript.json`（clasp 會說 cloned one file），進階服務、授權範圍和時區會消失，`setupTsuke` 會出現 `ReferenceError: Sheets is not defined`。
+
+   在 repo 根目錄執行：
+
+   ```bash
+   mkdir -p /tmp/tsuke-clasp-create
+   clasp create --title "Tsuke" --type standalone --rootDir /tmp/tsuke-clasp-create
+   node -e '
+   const fs = require("fs");
+   const created = JSON.parse(fs.readFileSync("/tmp/tsuke-clasp-create/.clasp.json", "utf8"));
+   fs.writeFileSync(".clasp.json", JSON.stringify({ scriptId: created.scriptId, rootDir: "." }, null, 2) + "\n");
+   '
+   clasp push
+   ```
+
+   如果已經在這個 repo 裡 create 過，保留 clasp 寫好的 `.clasp.json`，還原 manifest 再 push：
+
+   ```bash
+   git checkout -- appsscript.json
+   clasp push
+   ```
+
+   還原後 `git status` 不該再列出 `appsscript.json`。不要提交 clasp 產生的預設 manifest。若同意畫面是用預設範圍跑過的，重新執行 `setupTsuke` 並再授權一次。
+3. 在編輯器執行 `setupTsuke` 並授權。會在你的雲端硬碟建立「Tsuke 帳本」。回傳的試算表網址只留給自己，不要貼到公開的地方。若訊息說進階服務尚未啟用，先做上面的還原與 `clasp push`。
 4. 打開「付款方式」，把範例卡片名稱改成你的。
 5. 部署網頁應用程式時，執行身分選「我」，存取權限選「只有我」。不要選任何人，也不要選匿名。
 6. 日曆外掛用「測試部署」安裝到自己的 Calendar，從側欄記帳。

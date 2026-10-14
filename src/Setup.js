@@ -5,6 +5,7 @@
 
 function setupTsuke() {
   try {
+    requireAdvancedServices_();
     return withScriptLock_(function () {
       var created = false;
       var id = currentSpreadsheetId_();
@@ -35,6 +36,7 @@ function setupTsuke() {
 
 function refreshMonthlyChart() {
   try {
+    requireAdvancedServices_();
     return withScriptLock_(function () {
       var id = requireLedgerId_();
       var monthly = monthlySheetFormulas();
