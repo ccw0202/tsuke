@@ -232,7 +232,7 @@
         ],
         currencies: ['TWD', 'USD', 'JPY', 'EUR', 'HKD', 'CNY', 'KRW', 'GBP', 'SGD', 'AUD', 'CHF', 'CAD', 'THB', 'MYR', 'PHP', 'VND'],
         recent: [
-          { rowNumber: 2, date: '2026-01-01', name: '早餐（範例）', amount: 80, currency: 'TWD', category: '吃', paymentCode: '現金', paymentName: '現金', tag: '', twd: 80 }
+          { rowNumber: 2, date: '2026-01-01', name: '早餐（範例）', amount: 80, currency: 'TWD', category: '吃', paymentCode: '現金', paymentName: '現金', tag: '', twd: 80, createdAt: '2026-01-01 08:00:00' }
         ]
       };
       var DEMO_MEMORY = { '早餐': '現金' };
@@ -248,6 +248,7 @@
       var previewTimer = 0;
       var previewSeq = 0;
       var editRow = 0;
+      var editToken = '';
       var editCategory = '';
       var editPayment = '';
       var deleteArmed = false;
@@ -494,8 +495,10 @@
           } else {
             var category = shownCategory(local);
             var code = explicitCode || selectedCode;
+            var demoRow = nextDemoRow();
             state.recent.unshift({
-              rowNumber: nextDemoRow(),
+              rowNumber: demoRow,
+              createdAt: demoCreatedAt(demoRow),
               date: '2026-01-02',
               name: (local.name || '（未命名）') + '（範例）',
               amount: local.amount,
@@ -633,8 +636,14 @@
         return next;
       }
 
+      function demoCreatedAt(row) {
+        var second = Number(row) % 60;
+        return '2026-01-02 12:00:' + (second < 10 ? '0' : '') + second;
+      }
+
       function openEdit(entry) {
         editRow = entry.rowNumber;
+        editToken = typeof entry.createdAt === 'string' ? entry.createdAt : '';
         editName.value = entry.name || '';
         editAmount.value = plainAmount(entry.amount);
         if (state.currencies.indexOf(entry.currency) !== -1) editCurrency.value = entry.currency;
@@ -651,6 +660,7 @@
       function closeEdit() {
         editForm.hidden = true;
         editRow = 0;
+        editToken = '';
         disarmDelete();
         setLive(editStatus, '', false);
       }
@@ -721,7 +731,7 @@
         }).withFailureHandler(function () {
           saving = false;
           setLive(editStatus, '連線失敗，請再試一次。', true);
-        }).updateEntryFromWeb(editRow, name, amountText, currency, editCategory, editPayment);
+        }).updateEntryFromWeb(editRow, editToken, name, amountText, currency, editCategory, editPayment);
       }
 
       function onDeleteTap() {
@@ -754,7 +764,7 @@
           saving = false;
           disarmDelete();
           setLive(editStatus, '連線失敗，請再試一次。', true);
-        }).deleteEntryFromWeb(editRow, true);
+        }).deleteEntryFromWeb(editRow, editToken, true);
       }
 
       function disarmDelete() {

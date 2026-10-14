@@ -104,7 +104,7 @@ test('edit rejects a missing row, a bad amount, and an unknown category', () => 
   assert.equal(edit.planEntryUpdate_(existingRow(), { name: '早餐', amountText: '10', currency: 'TWD', categoryName: '吃', paymentCode: 'nope' }, bag).message, '請選擇付款方式。');
 });
 
-test('the phone payload keeps the row number and drops the event id', () => {
+test('the phone payload keeps the row number and the created time, and drops the event id', () => {
   const fields = match.publicEntryFields_({
     rowNumber: 5,
     date: '2026-01-02',
@@ -116,12 +116,36 @@ test('the phone payload keeps the row number and drops the event id', () => {
     paymentCode: '現金',
     tag: '',
     twd: 80,
+    createdAt: '2026-01-02 09:00:00',
     eventId: 'abcde12345'
   });
   assert.equal(fields.rowNumber, 5);
   assert.equal(fields.paymentCode, '現金');
+  assert.equal(fields.createdAt, '2026-01-02 09:00:00');
   assert.equal(Object.hasOwn(fields, 'eventId'), false);
   assert.equal(Object.hasOwn(match.publicEntryFields_({ rowNumber: 1, name: 'x' }), 'rowNumber'), false);
+});
+
+test('a created time matches the same row and rejects a moved or deleted one', () => {
+  const stamp = '2026-01-02 09:00:00';
+  const row = match.entriesFromRows([[
+    '2026-01-02', '早餐', 80, 'TWD', 80, '吃', '現金', '現金', '', '', '', '', '早餐', stamp, '', 'eventKeep1', ''
+  ]])[0];
+  assert.equal(row.createdAt, stamp);
+  assert.equal(match.guardStoredEntry_(row, stamp).ok, true);
+  assert.equal(match.guardStoredEntry_(row, '2026-01-02 09:00:01').message, '這一筆已經變了，請重新整理後再試。');
+  assert.equal(match.guardStoredEntry_(row, '').message, '這一筆已經變了，請重新整理後再試。');
+  assert.equal(match.guardStoredEntry_(Object.assign({}, row, { createdAt: '' }), stamp).message, '這一筆已經變了，請重新整理後再試。');
+  const deleted = match.entriesFromRows([[
+    '2026-01-02', '早餐', 80, 'TWD', 80, '吃', '現金', '現金', '', '', '', '', '早餐', "'" + stamp, '', '', '已刪除'
+  ]])[0];
+  assert.equal(deleted.deleted, true);
+  assert.equal(deleted.createdAt, stamp);
+  assert.equal(match.guardStoredEntry_(deleted, stamp).message, '這一筆已經刪除。');
+  assert.equal(match.guardStoredEntry_(deleted, '2026-01-01 00:00:00').message, '這一筆已經變了，請重新整理後再試。');
+  const serial = 25569.5;
+  assert.equal(match.createdAtFromCell_(serial), '1970-01-01 12:00:00');
+  assert.equal(match.guardStoredEntry_({ createdAt: serial, deleted: false }, '1970-01-01 12:00:00').ok, true);
 });
 
 test('edit and delete stay off the calendar when spend events are off', () => {
@@ -130,6 +154,16 @@ test('edit and delete stay off the calendar when spend events are off', () => {
   assert.match(ledger, /if \(ctx\.settings\.spendEvents && existing\.eventId\)/);
   assert.match(ledger, /confirmed !== true/);
   assert.match(ledger, /請再按一次確定刪除/);
+  assert.match(ledger, /function updateEntryFromWeb\(rowNumber, createdAt,/);
+  assert.match(ledger, /function deleteEntryFromWeb\(rowNumber, createdAt, confirmed\)/);
+  assert.match(ledger, /guardStoredEntry_\(existing, createdAt\)/);
+  assert.match(ledger, /writeSpendDeletes_\(ctx\.id, \[\{ rowNumber: existing\.rowNumber \}\]\)/);
+  assert.match(ledger, /parsed\[0\]\.rowNumber = index \+ 2;[\s\S]*return activeEntries_\(entries\)/);
+  assert.equal(ledger.includes('deleteDimension'), false);
+  assert.equal(ledger.includes('deleteEntryRow_'), false);
+  const page = fs.readFileSync('src/Index.html', 'utf8');
+  assert.match(page, /updateEntryFromWeb\(editRow, editToken,/);
+  assert.match(page, /deleteEntryFromWeb\(editRow, editToken, true\)/);
   const spend = fs.readFileSync('src/SpendCalendar.js', 'utf8');
   const update = spend.slice(spend.indexOf('function updateSpendEvent_'), spend.indexOf('function removeSpendEvent_'));
   const remove = spend.slice(spend.indexOf('function removeSpendEvent_'), spend.indexOf('function mirrorSpendEntry_'));

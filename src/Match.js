@@ -115,6 +115,7 @@ function entriesFromRows(rows) {
       tag: String(row[10] || ''),
       note: String(row[11] || ''),
       merchantKey: String(row[12] || ''),
+      createdAt: createdAtFromCell_(row[13]),
       time: clockFromCell_(row[14]),
       eventId: eventIdFromCell_(row[15]),
       status: entryStatusFromCell_(row[16]),
@@ -186,6 +187,54 @@ function serialToIso_(value) {
   return require('./Parser.js').sheetsSerialToIso(value);
 }
 
+function createdAtFromCell_(value) {
+  if (typeof value === 'number' && isFinite(value)) {
+    var whole = Math.floor(value);
+    var date = serialToIso_(whole);
+    if (!date) return '';
+    var seconds = Math.round((value - whole) * 86400);
+    if (seconds >= 86400) {
+      date = serialToIso_(whole + 1);
+      seconds = 0;
+      if (!date) return '';
+    }
+    if (seconds < 0) return '';
+    var hour = Math.floor(seconds / 3600);
+    var minute = Math.floor((seconds % 3600) / 60);
+    var second = seconds % 60;
+    return date + ' ' + twoDigits_(hour) + ':' + twoDigits_(minute) + ':' + twoDigits_(second);
+  }
+  var text = String(value == null ? '' : value).replace(/^'/, '').trim();
+  var match = text.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) return '';
+  var hourText = Number(match[2]);
+  var minuteText = Number(match[3]);
+  var secondText = Number(match[4]);
+  if (hourText > 23 || minuteText > 59 || secondText > 59) return '';
+  return match[1] + ' ' + match[2] + ':' + match[3] + ':' + match[4];
+}
+
+function twoDigits_(value) {
+  return (value < 10 ? '0' : '') + value;
+}
+
+function entryMatchesToken_(entry, token) {
+  var stored = createdAtFromCell_(entry && entry.createdAt);
+  var given = createdAtFromCell_(token);
+  if (!stored || !given) return false;
+  return stored === given;
+}
+
+function guardStoredEntry_(entry, token) {
+  if (!entryMatchesToken_(entry, token)) {
+    return { ok: false, message: '這一筆已經變了，請重新整理後再試。' };
+  }
+  if (entry && entry.deleted === true) {
+    return { ok: false, message: '這一筆已經刪除。' };
+  }
+  return { ok: true };
+}
+
 function publicEntryFields_(entry) {
   var source = entry || {};
   var out = {
@@ -197,7 +246,8 @@ function publicEntryFields_(entry) {
     paymentName: String(source.paymentName || ''),
     paymentCode: String(source.paymentCode || ''),
     tag: String(source.tag || ''),
-    twd: typeof source.twd === 'number' && isFinite(source.twd) ? source.twd : null
+    twd: typeof source.twd === 'number' && isFinite(source.twd) ? source.twd : null,
+    createdAt: createdAtFromCell_(source.createdAt)
   };
   var row = source.rowNumber;
   if (Number.isInteger(row) && row >= 2 && row <= 100000) out.rowNumber = row;
@@ -254,6 +304,8 @@ if (typeof module !== 'undefined' && module.exports) {
     memoryFromRows: memoryFromRows,
     entriesFromRows: entriesFromRows,
     activeEntries_: activeEntries_,
-    publicEntryFields_: publicEntryFields_
+    publicEntryFields_: publicEntryFields_,
+    createdAtFromCell_: createdAtFromCell_,
+    guardStoredEntry_: guardStoredEntry_
   };
 }

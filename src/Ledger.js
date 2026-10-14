@@ -124,11 +124,13 @@ function loadWebState_() {
   };
 }
 
-function updateEntryFromWeb(rowNumber, name, amountText, currency, categoryName, paymentCode) {
+function updateEntryFromWeb(rowNumber, createdAt, name, amountText, currency, categoryName, paymentCode) {
   try {
     return withScriptLock_(function () {
       var ctx = loadLedgerContext_();
       var existing = readEntryAt_(ctx.id, rowNumber);
+      var guard = guardStoredEntry_(existing, createdAt);
+      if (!guard.ok) return { ok: false, message: guard.message };
       var plan = planEntryUpdate_(existing, {
         name: name,
         amountText: amountText,
@@ -169,17 +171,19 @@ function updateEntryFromWeb(rowNumber, name, amountText, currency, categoryName,
   }
 }
 
-function deleteEntryFromWeb(rowNumber, confirmed) {
+function deleteEntryFromWeb(rowNumber, createdAt, confirmed) {
   if (confirmed !== true) return { ok: false, message: '請再按一次確定刪除。' };
   try {
     return withScriptLock_(function () {
       var ctx = loadLedgerContext_();
       var existing = readEntryAt_(ctx.id, rowNumber);
+      var guard = guardStoredEntry_(existing, createdAt);
+      if (!guard.ok) return { ok: false, message: guard.message };
       if (ctx.settings.spendEvents && existing.eventId) {
         var removed = removeSpendEvent_(existing.eventId);
         if (!removed.ok) return { ok: false, message: '沒有刪除。花費日曆沒有改。' };
       }
-      deleteEntryRow_(ctx.id, existing.rowNumber);
+      writeSpendDeletes_(ctx.id, [{ rowNumber: existing.rowNumber }]);
       return { ok: true, message: '已刪除。' };
     });
   } catch (err) {
@@ -360,24 +364,6 @@ function writeEntryCells_(id, rowNumber, cells) {
   });
   if (!data.length) return;
   Sheets.Spreadsheets.Values.batchUpdate({ valueInputOption: 'USER_ENTERED', data: data }, id);
-}
-
-function deleteEntryRow_(id, rowNumber) {
-  var row = coerceRowNumber_(rowNumber);
-  var sheet = sheetMap_(id)[SHEET_NAMES.ENTRIES];
-  if (!sheet || !sheet.properties) throw userFacingError_('找不到帳目表。');
-  Sheets.Spreadsheets.batchUpdate({
-    requests: [{
-      deleteDimension: {
-        range: {
-          sheetId: sheet.properties.sheetId,
-          dimension: 'ROWS',
-          startIndex: row - 1,
-          endIndex: row
-        }
-      }
-    }]
-  }, id);
 }
 
 function nextEntryRow_(id) {
