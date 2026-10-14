@@ -14,12 +14,19 @@ function setupTsuke() {
         created = true;
       }
       ensureLedger_(id);
-      var calendarNote = '日誌日曆已準備。';
+      var logNote = '日誌日曆已準備。';
       try {
         ensureLogCalendar_(LOG_CALENDAR_NAME);
       } catch (err) {
         logPrivate_(err);
-        calendarNote = '日誌日曆尚未建立。請確認已授權日曆後，再執行一次 setupTsuke。';
+        logNote = '日誌日曆尚未建立。請確認已授權日曆後，再執行一次 setupTsuke。';
+      }
+      var planNote = '活動日曆已準備。';
+      try {
+        ensurePlanCalendar_();
+      } catch (err) {
+        logPrivate_(err);
+        planNote = '活動日曆尚未建立。請確認已授權日曆後，再執行一次 setupTsuke。';
       }
       var spendNote = '花費日曆「' + SPEND_CALENDAR_NAME + '」已準備。';
       try {
@@ -30,7 +37,7 @@ function setupTsuke() {
       }
       return {
         ok: true,
-        message: (created ? '已建立帳本。' : '已檢查帳本。') + '付款方式的卡片名稱是範例，請改成你自己的。' + calendarNote + spendNote,
+        message: (created ? '已建立帳本。' : '已檢查帳本。') + '付款方式的卡片名稱是範例，請改成你自己的。' + logNote + spendNote + planNote,
         spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/' + id + '/edit'
       };
     });

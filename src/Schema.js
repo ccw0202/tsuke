@@ -18,7 +18,8 @@ var SHEET_NAMES = {
 var PROP_KEYS = {
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   LOG_CALENDAR_ID: 'LOG_CALENDAR_ID',
-  SPEND_CALENDAR_ID: 'SPEND_CALENDAR_ID'
+  SPEND_CALENDAR_ID: 'SPEND_CALENDAR_ID',
+  PLAN_CALENDAR_ID: 'PLAN_CALENDAR_ID'
 };
 
 var SETTING_KEYS = {
@@ -114,6 +115,7 @@ var FALLBACK_CATEGORY = '日常';
 var UNNAMED_ITEM = '（未命名）';
 var LOG_CALENDAR_NAME = 'Tsuke 日誌';
 var SPEND_CALENDAR_NAME = 'Tsuke 花費';
+var PLAN_CALENDAR_NAME = 'Tsuke 活動';
 var LEDGER_TITLE = 'Tsuke 帳本';
 var TIME_ZONE = 'Asia/Taipei';
 var MAX_LINE_LENGTH = 500;
@@ -182,8 +184,9 @@ var GUIDE_LINES = [
   ['同一個項目會記住上次的付款方式，下次自動預選。'],
   ['分類會依「分類」表的關鍵字猜測，猜不到就歸在日常。'],
   ['標籤：在「標籤」表填名稱與起迄日期（含首尾）。該區間的帳會自動帶上標籤。'],
-  ['日誌：以「日誌」開頭的句子會變成「Tsuke 日誌」日曆上的全日事件，不會寫進帳目。'],
+  ['日誌：以「日誌」開頭的句子，或網頁「日誌」分頁的文字，會變成「Tsuke 日誌」日曆上的全日事件，不會寫進帳目。'],
   ['花費：每一筆帳會在「Tsuke 花費」日曆建一個事件。這本日曆和主日曆、日誌日曆都分開，可以單獨隱藏。設定裡把「花費日曆」改成 FALSE 就停止。'],
+  ['活動：網頁「預訂活動」會寫進「Tsuke 活動」日曆，不會寫進主要日曆，也不會進帳目。可以在 Google 日曆裡隱藏它。'],
   ['外幣的「約當台幣」用試算表裡的 GOOGLEFINANCE 估算，會隨匯率更新。'],
   ['請不要把網頁應用程式公開部署，也不要分享這個試算表給不信任的人。']
 ];
@@ -220,6 +223,7 @@ if (typeof module !== 'undefined' && module.exports) {
     UNNAMED_ITEM: UNNAMED_ITEM,
     LOG_CALENDAR_NAME: LOG_CALENDAR_NAME,
     SPEND_CALENDAR_NAME: SPEND_CALENDAR_NAME,
+    PLAN_CALENDAR_NAME: PLAN_CALENDAR_NAME,
     LEDGER_TITLE: LEDGER_TITLE,
     TIME_ZONE: TIME_ZONE,
     MAX_LINE_LENGTH: MAX_LINE_LENGTH,

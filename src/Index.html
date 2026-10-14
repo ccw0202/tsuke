@@ -117,9 +117,9 @@
       letter-spacing: 0.12em;
     }
     .submit:disabled { opacity: 0.55; }
-    #status { min-height: 1.5rem; margin: 0.85rem 0 0; font-size: 1.0625rem; }
-    #status.is-bad { color: var(--seal); }
-    #status.is-ok { color: var(--ok); }
+    #status, #log-status, #plan-status { min-height: 1.5rem; margin: 0.85rem 0 0; font-size: 1.0625rem; }
+    #status.is-bad, #log-status.is-bad, #plan-status.is-bad { color: var(--seal); }
+    #status.is-ok, #log-status.is-ok, #plan-status.is-ok { color: var(--ok); }
     #preview { margin: 0.85rem 0 0; color: var(--muted); font-size: 1rem; min-height: 1.4rem; }
     .hint { color: var(--muted); font-size: 1rem; margin: 0.9rem 0 0; line-height: 1.45; }
     h2 { font-size: 1.125rem; font-weight: 560; margin: 1.5rem 0 0.45rem; letter-spacing: 0.08em; }
@@ -144,6 +144,44 @@
       margin-bottom: 0.9rem;
       font-size: 1rem;
     }
+    .tabs { display: flex; gap: 0.5rem; margin: 0 0 0.9rem; }
+    .tabs button {
+      flex: 1 1 0;
+      min-height: 3.25rem;
+      border: 1px solid #c9b8a2;
+      background: transparent;
+      color: var(--ink);
+      border-radius: 999px;
+      font-family: "Avenir Next", "PingFang TC", "Noto Sans TC", sans-serif;
+      font-size: 1.0625rem;
+      font-weight: 600;
+      line-height: 1.2;
+      padding: 0.45rem 0.35rem;
+      touch-action: manipulation;
+    }
+    .tabs button[aria-selected="true"] { background: var(--ink); color: var(--seal-ink); border-color: var(--ink); }
+    .tabs button:focus-visible { outline: 3px solid rgba(156, 52, 24, 0.35); outline-offset: 2px; }
+    .field { margin-top: 0.9rem; }
+    textarea,
+    input[type="date"],
+    input[type="time"] {
+      width: 100%;
+      border: 0;
+      border-bottom: 2px solid var(--ink);
+      background: transparent;
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 1.375rem;
+      line-height: 1.35;
+      min-height: 3.25rem;
+      padding: 0.85rem 0.1rem 0.55rem;
+      border-radius: 0;
+    }
+    textarea { min-height: 7.5rem; resize: vertical; }
+    textarea:focus, input[type="date"]:focus, input[type="time"]:focus {
+      outline: 3px solid rgba(156, 52, 24, 0.25);
+      outline-offset: 3px;
+    }
   </style>
 </head>
 <body>
@@ -153,17 +191,58 @@
       <div class="seal" aria-hidden="true">記</div>
       <h1>Tsuke<span>つけ · 記一筆</span></h1>
     </header>
-    <form id="entry-form" class="sheet">
-      <label for="line">今天記什麼</label>
-      <input id="line" name="line" type="text" maxlength="500" autocomplete="off" autocapitalize="off" enterkeyhint="done" placeholder="例如：早餐 80">
-      <div class="chips" id="chips" role="group" aria-label="付款方式"></div>
-      <p id="preview"></p>
-      <button class="submit" id="submit" type="submit">記下</button>
-      <p id="status" role="status" aria-live="polite"></p>
-      <p class="hint">以「日誌」開頭會寫進日曆「Tsuke 日誌」，不會進帳目。付款方式可在試算表修改。</p>
-    </form>
-    <h2>最近</h2>
-    <ul id="recent"></ul>
+    <div class="tabs" role="tablist" aria-label="功能">
+      <button type="button" id="tab-entry" role="tab" aria-selected="true" aria-controls="panel-entry">記帳</button>
+      <button type="button" id="tab-log" role="tab" aria-selected="false" aria-controls="panel-log" tabindex="-1">日誌</button>
+      <button type="button" id="tab-plan" role="tab" aria-selected="false" aria-controls="panel-plan" tabindex="-1">預訂活動</button>
+    </div>
+    <div id="panel-entry" role="tabpanel" aria-labelledby="tab-entry">
+      <form id="entry-form" class="sheet">
+        <label for="line">今天記什麼</label>
+        <input id="line" name="line" type="text" maxlength="500" autocomplete="off" autocapitalize="off" enterkeyhint="done" placeholder="例如：早餐 80">
+        <div class="chips" id="chips" role="group" aria-label="付款方式"></div>
+        <p id="preview"></p>
+        <button class="submit" id="submit" type="submit">記下</button>
+        <p id="status" role="status" aria-live="polite"></p>
+        <p class="hint">以「日誌」開頭會寫進日曆「Tsuke 日誌」，不會進帳目。上方「日誌」分頁可以直接寫，不必加開頭。付款方式可在試算表修改。</p>
+      </form>
+      <h2>最近</h2>
+      <ul id="recent"></ul>
+    </div>
+    <div id="panel-log" role="tabpanel" aria-labelledby="tab-log" hidden>
+      <form id="log-form" class="sheet">
+        <label for="log-text">今天</label>
+        <textarea id="log-text" name="log" maxlength="500" placeholder="例如：去公園散步"></textarea>
+        <button class="submit" id="log-submit" type="submit">寫入日誌</button>
+        <p id="log-status" role="status" aria-live="polite"></p>
+        <p class="hint">寫進日曆「Tsuke 日誌」，不會進帳目。記帳頁仍可用「日誌」開頭。</p>
+      </form>
+    </div>
+    <div id="panel-plan" role="tabpanel" aria-labelledby="tab-plan" hidden>
+      <form id="plan-form" class="sheet">
+        <label for="plan-date">日期</label>
+        <input id="plan-date" name="date" type="date" required>
+        <div class="field">
+          <label for="plan-time">時間（可不填）</label>
+          <input id="plan-time" name="time" type="time">
+        </div>
+        <div class="field">
+          <label for="plan-title">名稱</label>
+          <input id="plan-title" name="title" type="text" maxlength="80" autocomplete="off" placeholder="例如：跟朋友吃飯">
+        </div>
+        <div class="field">
+          <label for="plan-who">跟誰（可不填）</label>
+          <input id="plan-who" name="who" type="text" maxlength="40" autocomplete="off" placeholder="例如：範例朋友">
+        </div>
+        <div class="field">
+          <label for="plan-where">地點（可不填）</label>
+          <input id="plan-where" name="where" type="text" maxlength="80" autocomplete="off" placeholder="例如：範例公園">
+        </div>
+        <button class="submit" id="plan-submit" type="submit">建立活動</button>
+        <p id="plan-status" role="status" aria-live="polite"></p>
+        <p class="hint">寫進日曆「Tsuke 活動」，不是你的主要日曆。可以在 Google 日曆裡單獨隱藏。</p>
+      </form>
+    </div>
   </main>
   <script>
     (function () {
@@ -197,11 +276,31 @@
       var status = document.getElementById('status');
       var recent = document.getElementById('recent');
       var submitButton = document.getElementById('submit');
+      var logForm = document.getElementById('log-form');
+      var logText = document.getElementById('log-text');
+      var logStatus = document.getElementById('log-status');
+      var logSubmit = document.getElementById('log-submit');
+      var planForm = document.getElementById('plan-form');
+      var planDate = document.getElementById('plan-date');
+      var planTime = document.getElementById('plan-time');
+      var planTitle = document.getElementById('plan-title');
+      var planWho = document.getElementById('plan-who');
+      var planWhere = document.getElementById('plan-where');
+      var planStatus = document.getElementById('plan-status');
+      var planSubmit = document.getElementById('plan-submit');
+      var logSaving = false;
+      var planSaving = false;
 
       form.addEventListener('submit', onSubmit);
       lineInput.addEventListener('input', schedulePreview);
+      document.getElementById('tab-entry').addEventListener('click', function () { showTab('entry'); });
+      document.getElementById('tab-log').addEventListener('click', function () { showTab('log'); });
+      document.getElementById('tab-plan').addEventListener('click', function () { showTab('plan'); });
+      logForm.addEventListener('submit', onLogSubmit);
+      planForm.addEventListener('submit', onPlanSubmit);
 
       function boot() {
+        if (!planDate.value) planDate.value = localTomorrow_();
         if (window.google && google.script && google.script.run) {
           setStatus('讀取中…', false);
           google.script.run.withSuccessHandler(applyState).withFailureHandler(function () {
@@ -421,8 +520,103 @@
       }
 
       function setStatus(message, isError) {
-        status.textContent = message || '';
-        status.className = message ? (isError ? 'is-bad' : 'is-ok') : '';
+        setLive(status, message, isError);
+      }
+
+      function setLive(node, message, isError) {
+        node.textContent = message || '';
+        node.className = message ? (isError ? 'is-bad' : 'is-ok') : '';
+      }
+
+      function showTab(name) {
+        ['entry', 'log', 'plan'].forEach(function (id) {
+          var on = id === name;
+          var button = document.getElementById('tab-' + id);
+          var panel = document.getElementById('panel-' + id);
+          button.setAttribute('aria-selected', on ? 'true' : 'false');
+          button.tabIndex = on ? 0 : -1;
+          panel.hidden = !on;
+        });
+      }
+
+      function localTomorrow_() {
+        var date = new Date();
+        date.setDate(date.getDate() + 1);
+        var month = date.getMonth() + 1;
+        var day = date.getDate();
+        return date.getFullYear() + '-' + (month < 10 ? '0' : '') + month + '-' + (day < 10 ? '0' : '') + day;
+      }
+
+      function onLogSubmit(event) {
+        event.preventDefault();
+        var text = logText.value;
+        if (!text.trim() || logSaving) {
+          if (!text.trim()) setLive(logStatus, '請輸入日誌內容', true);
+          return;
+        }
+        logSaving = true;
+        logSubmit.disabled = true;
+        if (demo) {
+          setLive(logStatus, '本機預覽，沒有寫入日曆。', false);
+          logText.value = '';
+          logSaving = false;
+          logSubmit.disabled = false;
+          return;
+        }
+        google.script.run.withSuccessHandler(function (result) {
+          logSaving = false;
+          logSubmit.disabled = false;
+          if (!result || !result.ok) {
+            setLive(logStatus, (result && result.message) || '日誌沒有寫入，請稍後再試。', true);
+            return;
+          }
+          setLive(logStatus, result.message || '已寫入日誌', false);
+          logText.value = '';
+        }).withFailureHandler(function () {
+          logSaving = false;
+          logSubmit.disabled = false;
+          setLive(logStatus, '連線失敗，請再試一次。', true);
+        }).addLogFromWeb(text);
+      }
+
+      function onPlanSubmit(event) {
+        event.preventDefault();
+        var title = planTitle.value;
+        var date = planDate.value;
+        var time = planTime.value;
+        var who = planWho.value;
+        var where = planWhere.value;
+        if (!title.trim() || planSaving) {
+          if (!title.trim()) setLive(planStatus, '請輸入活動名稱', true);
+          return;
+        }
+        planSaving = true;
+        planSubmit.disabled = true;
+        if (demo) {
+          setLive(planStatus, '本機預覽，沒有寫入日曆。', false);
+          planTitle.value = '';
+          planWho.value = '';
+          planWhere.value = '';
+          planSaving = false;
+          planSubmit.disabled = false;
+          return;
+        }
+        google.script.run.withSuccessHandler(function (result) {
+          planSaving = false;
+          planSubmit.disabled = false;
+          if (!result || !result.ok) {
+            setLive(planStatus, (result && result.message) || '活動沒有寫入，請稍後再試。', true);
+            return;
+          }
+          setLive(planStatus, result.message || '已建立活動', false);
+          planTitle.value = '';
+          planWho.value = '';
+          planWhere.value = '';
+        }).withFailureHandler(function () {
+          planSaving = false;
+          planSubmit.disabled = false;
+          setLive(planStatus, '連線失敗，請再試一次。', true);
+        }).addPlanFromWeb(title, date, time, who, where);
       }
 
       function formatAmount(entry) {
