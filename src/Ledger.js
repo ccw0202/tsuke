@@ -203,6 +203,7 @@ function requireLedgerId_() {
 }
 
 function loadLedgerContext_() {
+  requireAdvancedServices_();
   var id = requireLedgerId_();
   var parts = batchValues_(id, [
     SHEET_NAMES.SETTINGS + '!A2:B50',
@@ -231,6 +232,7 @@ function loadLedgerContext_() {
 }
 
 function readAllEntries_() {
+  requireAdvancedServices_();
   var id = requireLedgerId_();
   return entriesFromRows(sheetValues_(id, SHEET_NAMES.ENTRIES + '!A2:N'));
 }
