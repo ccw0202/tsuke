@@ -36,6 +36,7 @@ test('parses a bare amount with a name', () => {
   assert.equal(result.category, '吃');
   assert.equal(result.categorySource, 'keyword');
   assert.equal(result.date, TODAY);
+  assert.equal(result.time, '');
 });
 
 test('reads a configured payment word from the line', () => {
@@ -200,6 +201,21 @@ test('sheet serials convert to civil dates', () => {
   assert.equal(parser.sheetsSerialToIso(25569), '1970-01-01');
 });
 
+test('a clock time is kept and removed from the name', () => {
+  const morning = parse('早餐 8:30 80');
+  assert.equal(morning.time, '08:30');
+  assert.equal(morning.name, '早餐');
+  assert.equal(morning.amount, 80);
+  assert.equal(morning.date, TODAY);
+  const evening = parse('昨天 晚餐 20:15 200');
+  assert.equal(evening.time, '20:15');
+  assert.equal(evening.name, '晚餐');
+  assert.equal(evening.date, '2026-10-13');
+  assert.equal(parse('早餐 80 8：05').time, '08:05');
+  assert.equal(parse('早餐 25:00 80').time, '');
+  assert.equal(parse('早餐 25:00 80').name, '早餐 25:00');
+});
+
 test('settings ignore formula-like calendar names and unknown currencies', () => {
   const settings = parser.settingsFromRows([
     ['預設幣別', 'usd'],
@@ -212,6 +228,10 @@ test('settings ignore formula-like calendar names and unknown currencies', () =>
   assert.equal(settings.payment, 'ef');
   assert.equal(settings.calendarName, 'Tsuke 日誌');
   assert.equal(settings.timeZone, 'Asia/Taipei');
+  assert.equal(settings.spendEvents, true);
+  assert.equal(parser.settingsFromRows([['花費日曆', 'FALSE']]).spendEvents, false);
+  assert.equal(parser.settingsFromRows([['花費日曆', '關閉']]).spendEvents, false);
+  assert.equal(parser.settingsFromRows([['花費日曆', '=TRUE()']]).spendEvents, true);
 });
 
 test('starter card rows are labeled as examples', () => {

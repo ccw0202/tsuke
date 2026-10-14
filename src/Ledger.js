@@ -62,7 +62,8 @@ function previewEntry(line) {
       explicitPaymentCode: explicit ? explicit.code : '',
       explicitPaymentName: explicit ? explicit.name : '',
       suggestedPaymentCode: suggested ? suggested.code : '',
-      summary: parsed.date + ' · ' + parsed.name + ' ' + parsed.amount + ' ' + parsed.currency + ' · ' + parsed.category
+      time: parsed.time || '',
+      summary: parsed.date + (parsed.time ? ' ' + parsed.time : '') + ' · ' + parsed.name + ' ' + parsed.amount + ' ' + parsed.currency + ' · ' + parsed.category
     };
   } catch (err) {
     if (err && err.userFacing) return { ok: false, message: err.message };
@@ -159,14 +160,35 @@ function writeParsedEntry_(line, options) {
     tag: tag,
     note: parsed.note,
     merchantKey: parsed.merchantKey,
-    createdAt: createdAt
+    createdAt: createdAt,
+    time: parsed.time || '',
+    eventId: ''
   });
   writeEntryRow_(ctx.id, rowNumber, row);
   if (parsed.name !== UNNAMED_ITEM) rememberPayment_(ctx.id, parsed.merchantKey, parsed.name, payment.code, createdAt);
+  var spendNote = '';
+  if (ctx.settings.spendEvents) {
+    var eventId = '';
+    try {
+      eventId = mirrorSpendEntry_(ctx.id, rowNumber, {
+        date: parsed.date,
+        time: parsed.time || '',
+        name: parsed.name,
+        amount: parsed.amount,
+        currency: parsed.currency,
+        twd: parsed.currency === 'TWD' ? parsed.amount : null,
+        timeZone: ctx.settings.timeZone,
+        spendEvents: true
+      });
+    } catch (err) {
+      logPrivate_(err);
+    }
+    spendNote = eventId ? '已寫入「' + SPEND_CALENDAR_NAME + '」。' : '花費日曆沒有寫入。';
+  }
   return {
     ok: true,
     type: 'expense',
-    message: '已記下：' + parsed.date + ' ' + parsed.name + ' ' + parsed.amount + ' ' + parsed.currency + ' · ' + parsed.category + ' · ' + payment.name,
+    message: '已記下：' + parsed.date + (parsed.time ? ' ' + parsed.time : '') + ' ' + parsed.name + ' ' + parsed.amount + ' ' + parsed.currency + ' · ' + parsed.category + ' · ' + payment.name + (spendNote ? '。' + spendNote : ''),
     entry: publicEntry_({
       date: parsed.date,
       name: parsed.name,
@@ -234,7 +256,7 @@ function loadLedgerContext_() {
 function readAllEntries_() {
   requireAdvancedServices_();
   var id = requireLedgerId_();
-  return entriesFromRows(sheetValues_(id, SHEET_NAMES.ENTRIES + '!A2:N'));
+  return entriesFromRows(sheetValues_(id, SHEET_NAMES.ENTRIES + '!A2:' + columnLetter_(ENTRY_HEADERS.length)));
 }
 
 function nextEntryRow_(id) {

@@ -83,6 +83,10 @@ function buildEntryRow(fields) {
   if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(String(input.createdAt || ''))) {
     throw userFacingError_('時間不正確');
   }
+  var clock = String(input.time || '');
+  if (clock && !/^\d{2}:\d{2}$/.test(clock)) throw userFacingError_('時間不正確');
+  var eventId = String(input.eventId || '').replace(/^'/, '');
+  if (!isEventIdShape_(eventId)) eventId = '';
   return [
     input.date,
     guardSheetText(input.name, 80),
@@ -97,7 +101,9 @@ function buildEntryRow(fields) {
     guardSheetText(input.tag, 120),
     guardSheetText(input.note, 200),
     guardSheetText(input.merchantKey, 80),
-    input.createdAt
+    input.createdAt,
+    clock,
+    eventId
   ];
 }
 
@@ -182,6 +188,10 @@ function isCalendarIdShape_(value) {
   return /^[A-Za-z0-9._@-]{10,200}$/.test(String(value || ''));
 }
 
+function isEventIdShape_(value) {
+  return /^[A-Za-z0-9_-]{5,128}$/.test(String(value || ''));
+}
+
 function isScriptWebAppUrl_(value) {
   return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(String(value || ''));
 }
@@ -209,6 +219,7 @@ if (typeof module !== 'undefined' && module.exports) {
     clipText_: clipText_,
     isSpreadsheetIdShape_: isSpreadsheetIdShape_,
     isCalendarIdShape_: isCalendarIdShape_,
+    isEventIdShape_: isEventIdShape_,
     isScriptWebAppUrl_: isScriptWebAppUrl_,
     serviceFailureMessage_: serviceFailureMessage_,
     monthlySheetFormulas: monthlySheetFormulas,

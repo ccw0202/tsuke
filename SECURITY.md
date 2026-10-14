@@ -26,7 +26,7 @@ Tsuke does not send ledger data to a server other than Google. It does not use `
 | Scope | Why it is here |
 | --- | --- |
 | `https://www.googleapis.com/auth/drive.file` | Create the ledger spreadsheet and later read and edit that file. `drive.file` is limited to files this script creates (or that the user explicitly picks). It is not all of Drive. |
-| `https://www.googleapis.com/auth/calendar.app.created` | Create the secondary calendar 「Tsuke 日誌」 and add, see, and delete events on calendars this script created. |
+| `https://www.googleapis.com/auth/calendar.app.created` | Create the secondary calendars 「Tsuke 日誌」 and 「Tsuke 花費」, and add, see, update, and delete events on calendars this script created. The primary calendar is never passed to the API. |
 | `https://www.googleapis.com/auth/calendar.addons.execute` | Let the Calendar sidebar render. The manifest does not set `currentEventAccess`, so the add-on is not given the open event's title, guests, or description. |
 
 Rejected on purpose:
@@ -41,9 +41,9 @@ Rejected on purpose:
 | `https://www.googleapis.com/auth/script.external_request` | Would allow `UrlFetchApp` to call arbitrary URLs. The manifest does not grant it, and the code does not call `UrlFetchApp`. |
 | `userinfo.email` | Not required. Access control is the deployment setting, not an email comparison. |
 
-`SpreadsheetApp.openById` documents the full spreadsheets scope and will not honor `drive.file`. Tsuke therefore uses the Advanced Sheets service (`Sheets.Spreadsheets`) against the spreadsheet id that `Sheets.Spreadsheets.create` returned under `drive.file`. The same pattern is used for Calendar: `Calendar.Calendars.insert` and `Calendar.Events.insert`, not `CalendarApp`, which asks for the broad calendar scope.
+`SpreadsheetApp.openById` documents the full spreadsheets scope and will not honor `drive.file`. Tsuke therefore uses the Advanced Sheets service (`Sheets.Spreadsheets`) against the spreadsheet id that `Sheets.Spreadsheets.create` returned under `drive.file`. The same pattern is used for Calendar: `Calendar.Calendars.insert`, `Calendar.Events.insert`, `Calendar.Events.update`, and `Calendar.Events.remove`, not `CalendarApp`, which asks for the broad calendar scope. Expense events go on the calendar id returned by `Calendars.insert` for 「Tsuke 花費」 and stored in Script Properties. The event id is written on the ledger row. The event description is a fixed sentence and does not include the spreadsheet id or URL.
 
-Script Properties are the only place the spreadsheet id and calendar id are stored. Both are checked against a closed character set before they are sent back to a Google API. They are never written into the HTML page. The sidebar's "開啟帳本" button builds `https://docs.google.com/spreadsheets/d/<id>/edit` only after that check. User-facing errors do not include exception text, because Apps Script errors often echo the id.
+Script Properties are the only place the spreadsheet id and the two calendar ids are stored. Each id is checked against a closed character set before it is sent back to a Google API. They are never written into the HTML page. The sidebar's "開啟帳本" button builds `https://docs.google.com/spreadsheets/d/<id>/edit` only after that check. User-facing errors do not include exception text, because Apps Script errors often echo the id.
 
 ## Web app
 

@@ -114,10 +114,36 @@ function entriesFromRows(rows) {
       cardCode: String(row[9] || ''),
       tag: String(row[10] || ''),
       note: String(row[11] || ''),
-      merchantKey: String(row[12] || '')
+      merchantKey: String(row[12] || ''),
+      time: clockFromCell_(row[14]),
+      eventId: eventIdFromCell_(row[15])
     });
   });
   return out;
+}
+
+function clockFromCell_(value) {
+  if (typeof value === 'number' && isFinite(value) && value >= 0 && value < 1) {
+    var minutes = Math.round(value * 24 * 60) % (24 * 60);
+    var hour = Math.floor(minutes / 60);
+    var minute = minutes % 60;
+    return (hour < 10 ? '0' : '') + hour + ':' + (minute < 10 ? '0' : '') + minute;
+  }
+  var match = String(value || '').trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return '';
+  var hour = Number(match[1]);
+  var minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return '';
+  return (hour < 10 ? '0' : '') + hour + ':' + (minute < 10 ? '0' : '') + minute;
+}
+
+function eventIdFromCell_(value) {
+  var text = String(value || '').replace(/^'/, '').trim();
+  if (typeof isEventIdShape_ === 'function') return isEventIdShape_(text) ? text : '';
+  if (typeof module !== 'undefined' && module.exports) {
+    return require('./Security.js').isEventIdShape_(text) ? text : '';
+  }
+  return '';
 }
 
 function coerceIsoDate_(value) {
