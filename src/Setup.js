@@ -21,9 +21,16 @@ function setupTsuke() {
         logPrivate_(err);
         calendarNote = '日誌日曆尚未建立。請確認已授權日曆後，再執行一次 setupTsuke。';
       }
+      var spendNote = '花費日曆「' + SPEND_CALENDAR_NAME + '」已準備。';
+      try {
+        ensureSpendCalendar_(SPEND_CALENDAR_NAME);
+      } catch (err) {
+        logPrivate_(err);
+        spendNote = '花費日曆尚未建立。請確認已授權日曆後，再執行一次 setupTsuke。';
+      }
       return {
         ok: true,
-        message: (created ? '已建立帳本。' : '已檢查帳本。') + '付款方式的卡片名稱是範例，請改成你自己的。' + calendarNote,
+        message: (created ? '已建立帳本。' : '已檢查帳本。') + '付款方式的卡片名稱是範例，請改成你自己的。' + calendarNote + spendNote,
         spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/' + id + '/edit'
       };
     });
@@ -141,7 +148,8 @@ function seedLedgerValues_(id) {
       SHEET_NAMES.CATEGORIES + '!A2',
       SHEET_NAMES.MEMORY + '!A1',
       SHEET_NAMES.SETTINGS + '!A1',
-      SHEET_NAMES.SETTINGS + '!A2:A30'
+      SHEET_NAMES.SETTINGS + '!A2:A30',
+      SHEET_NAMES.ENTRIES + '!' + columnLetter_(ENTRY_COL.TIME) + '1:' + columnLetter_(ENTRY_COL.EVENT_ID) + '1'
     ],
     valueRenderOption: 'FORMULA'
   });
@@ -151,7 +159,16 @@ function seedLedgerValues_(id) {
     data.push({ range: range, values: rows });
   }
   if (!firstCell_(cells[0])) put(SHEET_NAMES.GUIDE + '!A1:A' + GUIDE_LINES.length, GUIDE_LINES);
-  if (!firstCell_(cells[1])) put(SHEET_NAMES.ENTRIES + '!A1:N1', [ENTRY_HEADERS]);
+  if (!firstCell_(cells[1])) put(SHEET_NAMES.ENTRIES + '!A1:' + columnLetter_(ENTRY_HEADERS.length) + '1', [ENTRY_HEADERS]);
+  var eventHeader = (cells[13] && cells[13][0]) || [];
+  var timeHeader = ENTRY_HEADERS[ENTRY_COL.TIME - 1];
+  var eventIdHeader = ENTRY_HEADERS[ENTRY_COL.EVENT_ID - 1];
+  if (firstCell_(cells[1]) && (String(eventHeader[0] || '') !== timeHeader || String(eventHeader[1] || '') !== eventIdHeader)) {
+    put(
+      SHEET_NAMES.ENTRIES + '!' + columnLetter_(ENTRY_COL.TIME) + '1:' + columnLetter_(ENTRY_COL.EVENT_ID) + '1',
+      [[timeHeader, eventIdHeader]]
+    );
+  }
   var monthly = monthlySheetFormulas();
   if (!firstCell_(cells[2])) {
     put(SHEET_NAMES.MONTHLY + '!A1', [['月份統計']]);
@@ -190,7 +207,8 @@ function settingSeedRows_() {
     [SETTING_KEYS.payment, DEFAULT_SETTINGS.payment, '沒點付款按鈕、也沒有上次紀錄時使用。範例代碼，可改。'],
     [SETTING_KEYS.logMarker, DEFAULT_SETTINGS.logMarker, '句子用這個詞開頭就寫進日誌日曆。'],
     [SETTING_KEYS.calendarName, DEFAULT_SETTINGS.calendarName, '第一次建立日誌日曆時使用的名稱。'],
-    [SETTING_KEYS.timeZone, DEFAULT_SETTINGS.timeZone, '「今天」的時區。']
+    [SETTING_KEYS.timeZone, DEFAULT_SETTINGS.timeZone, '「今天」的時區。'],
+    [SETTING_KEYS.spendEvents, DEFAULT_SETTINGS.spendEvents, 'TRUE 時每一筆帳會在「Tsuke 花費」日曆建事件。改成 FALSE 就停止，不會動到主日曆。改完舊帳後執行 syncSpendCalendar。']
   ];
 }
 
@@ -223,11 +241,11 @@ function formatLedger_(id, meta) {
   var entries = meta[SHEET_NAMES.ENTRIES];
   if (entries) {
     var entryId = entries.properties.sheetId;
-    requests = requests.concat(textColumns_(entryId, [2, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14]));
+    requests = requests.concat(textColumns_(entryId, [2, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]));
     requests.push(dateColumn_(entryId, ENTRY_COL.DATE));
     requests.push(numberColumn_(entryId, ENTRY_COL.AMOUNT));
     requests.push(numberColumn_(entryId, ENTRY_COL.TWD));
-    requests = requests.concat(columnWidths_(entryId, [110, 160, 90, 70, 110, 80, 110, 150, 110, 110, 140, 180, 140, 160]));
+    requests = requests.concat(columnWidths_(entryId, [110, 160, 90, 70, 110, 80, 110, 150, 110, 110, 140, 180, 140, 160, 80, 180]));
   }
   var payments = meta[SHEET_NAMES.PAYMENTS];
   if (payments) requests = requests.concat(textColumns_(payments.properties.sheetId, [1, 2, 4, 5, 6, 7, 8]));

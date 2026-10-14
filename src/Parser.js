@@ -123,11 +123,19 @@ function parseEntry(line, options) {
   var currency = currencyHits.length ? currencyHits[currencyHits.length - 1] : defaultCurrency;
   if (!isAllowedCurrency(currency)) currency = defaultCurrency;
 
+  var clock = '';
+  var afterClock = [];
+  for (var t = 0; t < afterCurrency.length; t++) {
+    var parsedClock = parseClockToken(afterCurrency[t]);
+    if (parsedClock) clock = parsedClock;
+    else afterClock.push(afterCurrency[t]);
+  }
+
   var amount = null;
   var amountIndex = -1;
   var amountError = '';
-  for (var a = 0; a < afterCurrency.length; a++) {
-    var parsedAmount = parseAmountToken(afterCurrency[a]);
+  for (var a = 0; a < afterClock.length; a++) {
+    var parsedAmount = parseAmountToken(afterClock[a]);
     if (!parsedAmount) continue;
     amountIndex = a;
     if (parsedAmount.error) {
@@ -141,7 +149,7 @@ function parseEntry(line, options) {
   if (amountError) return parserFail_(amountError, raw);
   if (amount === null) return parserFail_('請輸入金額', raw);
 
-  var nameParts = afterCurrency.slice(0, amountIndex).concat(afterCurrency.slice(amountIndex + 1));
+  var nameParts = afterClock.slice(0, amountIndex).concat(afterClock.slice(amountIndex + 1));
   if (!categoryExplicit) {
     var bare = takeBareCategory_(nameParts, categories);
     if (bare) {
@@ -172,8 +180,18 @@ function parseEntry(line, options) {
     categorySource: categorySource,
     note: note,
     tag: explicitTags.join('、'),
+    time: clock,
     raw: raw
   };
+}
+
+function parseClockToken(token) {
+  var match = String(token || '').match(/^(\d{1,2})[:：](\d{2})$/);
+  if (!match) return '';
+  var hour = Number(match[1]);
+  var minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return '';
+  return (hour < 10 ? '0' : '') + hour + ':' + (minute < 10 ? '0' : '') + minute;
 }
 
 function parseLog_(body, today, raw) {
@@ -537,8 +555,17 @@ function settingsFromRows(rows) {
     payment: payment,
     logMarker: marker,
     calendarName: calendarName,
-    timeZone: safeTimeZone(pick(keys.timeZone, defaults.timeZone))
+    timeZone: safeTimeZone(pick(keys.timeZone, defaults.timeZone)),
+    spendEvents: spendEventsEnabled_(map[keys.spendEvents], defaults.spendEvents !== 'FALSE')
   };
+}
+
+function spendEventsEnabled_(value, fallback) {
+  var text = String(value == null ? '' : value).trim();
+  if (!text) return fallback !== false;
+  if (/^(false|0|off|否|關閉)$/i.test(text)) return false;
+  if (/^(true|1|on|是|開啟)$/i.test(text)) return true;
+  return fallback !== false;
 }
 
 function sheetsSerialToIso(serial) {
@@ -596,6 +623,8 @@ if (typeof module !== 'undefined' && module.exports) {
     paymentsFromRows: paymentsFromRows,
     parseAmountToken: parseAmountToken,
     sheetsSerialToIso: sheetsSerialToIso,
-    settingsFromRows: settingsFromRows
+    settingsFromRows: settingsFromRows,
+    parseClockToken: parseClockToken,
+    spendEventsEnabled_: spendEventsEnabled_
   };
 }

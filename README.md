@@ -1,6 +1,6 @@
 # Tsuke (つけ)
 
-Tsuke is a private, one-line bookkeeping book and daily log. You type a sentence, and it lands in a Google Sheet you own. Foreign amounts get an approximate TWD figure from `GOOGLEFINANCE`. A line that starts with `日誌` becomes an all-day event on a calendar named **Tsuke 日誌**.
+Tsuke is a private, one-line bookkeeping book and daily log. You type a sentence, and it lands in a Google Sheet you own. Foreign amounts get an approximate TWD figure from `GOOGLEFINANCE`. A line that starts with `日誌` becomes an all-day event on a calendar named **Tsuke 日誌**. Each expense also becomes an event on a second script-created calendar, **Tsuke 花費**, which you can hide without hiding your main calendar or the diary.
 
 The phone page is one input box, a row of payment buttons, and the last few entries. The same entry path is available from a Calendar sidebar. Nothing in this repository is a real ledger: sample cards, trips, and amounts are examples.
 
@@ -62,7 +62,17 @@ On the phone, Cube starts selected. After you save 早餐 with 現金, the next 
 
 The Calendar sidebar uses the same rule with a dropdown. 「沿用上次」 means memory, then the default.
 
-`addEntry(line, options)` is the only write path. The web app and the sidebar both call it. A later chat bot or importer can call it too, without knowing about the sheets.
+`addEntry(line, options)` is the only write path for new rows. The web app and the sidebar both call it. A later chat bot or importer can call it too, without knowing about the sheets.
+
+## Tsuke 花費
+
+`setupTsuke` creates a calendar named **Tsuke 花費** if that id is not already in Script Properties. The Calendar call is `Calendars.insert` under `calendar.app.created`, so the event is created on that new calendar. Your main calendar is not read or written.
+
+A line with a clock time, such as `早餐 8:30 80`, becomes a 30-minute event at 08:30 on the entry's date. A line with no time, such as `早餐 80`, is all-day on that date. Titles look like `早餐 80`. A foreign amount looks like `ChatGPT 20 USD`, and after the sheet has calculated 約當台幣, `syncSpendCalendar` rewrites it as `ChatGPT 20 USD (≈NT$650)`.
+
+The event id is stored on the row in 日曆事件. Edit the row in the sheet, or delete it, then run `syncSpendCalendar` from the editor. That updates events that are still on the sheet and deletes Tsuke events whose rows are gone. It does not delete events you added by hand on that calendar, and it does not touch any other calendar.
+
+Set 花費日曆 to `FALSE` to stop. New entries stay in the sheet only, and `syncSpendCalendar` leaves the calendar as it is. Existing events stay until you hide or delete that calendar yourself.
 
 ## Project layout
 
@@ -74,6 +84,7 @@ src/Security.js          formula guard and row builder
 src/Schema.js            sheet names, columns, example template, future sheets
 src/Ledger.js            addEntry, search, preview
 src/LogCalendar.js       Tsuke 日誌 calendar
+src/SpendCalendar.js     Tsuke 花費 calendar
 src/Setup.js             setupTsuke
 src/WebApp.js            doGet
 src/Sidebar.js           Calendar CardService sidebar
@@ -130,7 +141,7 @@ Node 18 or newer. The tests do not call Google. They cover the parser, payment p
 
 3. `clasp push` sends `enabledAdvancedServices` from the committed `appsscript.json` (Sheets API as `Sheets`, Calendar API as `Calendar`). If `setupTsuke` says those services are missing, the Apps Script project is still on the default manifest: restore and push as in step 2, then run setup again.
 
-4. Run `setupTsuke` from the editor and accept the consent screen. The script asks for three scopes, listed in [SECURITY.md](SECURITY.md). It creates a spreadsheet named **Tsuke 帳本** in your Drive and stores that id in Script Properties. It also creates the **Tsuke 日誌** calendar the first time it can. The function's return value includes the spreadsheet URL. That URL is private. Do not paste it into git, a screenshot, or a public issue.
+4. Run `setupTsuke` from the editor and accept the consent screen. The script asks for three scopes, listed in [SECURITY.md](SECURITY.md). It creates a spreadsheet named **Tsuke 帳本** in your Drive and stores that id in Script Properties. It also creates the **Tsuke 日誌** calendar and the **Tsuke 花費** calendar the first time it can. The function's return value includes the spreadsheet URL. That URL is private. Do not paste it into git, a screenshot, or a public issue. If this ledger already has rows, run `syncSpendCalendar` once to add events for them.
 
 5. Open 付款方式 and replace the example card names. Change 預設付款代碼 in 設定 if the default button should not be `cube`. Edit keywords in 分類 if you want different guesses. Add a row to 標籤 when you want a date range, for example name `範例旅行`, start `2026-02-15`, end `2026-02-22`.
 
@@ -154,7 +165,7 @@ Re-run `setupTsuke` if you need to repair a missing sheet or formula. It will no
 The manifest requests only:
 
 - `https://www.googleapis.com/auth/drive.file` — create the ledger and edit that file. Not every spreadsheet, and not all of Drive.
-- `https://www.googleapis.com/auth/calendar.app.created` — create the Tsuke 日誌 calendar and put all-day events on calendars this script created.
+- `https://www.googleapis.com/auth/calendar.app.created` — create the Tsuke 日誌 and Tsuke 花費 calendars, and add, update, and delete events on calendars this script created.
 - `https://www.googleapis.com/auth/calendar.addons.execute` — run the Calendar sidebar. The add-on does not request access to the event you have open.
 
 `spreadsheets.currentonly` cannot see a spreadsheet while you are in Calendar, because Calendar has no current spreadsheet. `SpreadsheetApp.openById` would require the broad spreadsheets scope, so Tsuke uses the Sheets API on the file it created, which `drive.file` allows. Details and the rejected scopes are in [SECURITY.md](SECURITY.md).
@@ -192,7 +203,7 @@ Not built. v1 puts only `日誌` lines on 「Tsuke 日誌」. Expense rows stay 
 
 ## 繁體中文
 
-Tsuke（つけ）是給自己用的記帳本，外加一本每日日誌。資料只放在你自己的 Google 帳號：一張試算表、一本叫做「Tsuke 日誌」的日曆。沒有外部伺服器。
+Tsuke（つけ）是給自己用的記帳本，外加一本每日日誌。資料只放在你自己的 Google 帳號：一張試算表、一本叫做「Tsuke 日誌」的日曆，還有一本叫做「Tsuke 花費」的日曆。沒有外部伺服器。主日曆不會被寫入。
 
 手機打開網頁，輸入一行再按記下。例如：
 
@@ -209,6 +220,8 @@ ChatGPT 20 USD cube
 付款方式不用打進句子。輸入框下面有按鈕，清單來自「付款方式」表，可以自己增刪改。範本裡的「範例信用卡 Cube」「範例信用卡 EF」只是例子，請改成你自己的叫法，不要把卡號或末四碼寫進表裡或提交到 git。Cube 會先被選取。同一個項目會記住上次的付款方式，下次自動預選。句子裡如果寫了代碼（例如 `現金` 或 `甲銀行轉帳`），以句子為準。
 
 `日誌` 開頭的句子會變成「Tsuke 日誌」日曆上的全日事件，不會進帳目。
+
+每一筆帳會在「Tsuke 花費」再加一個事件。句子裡有時間（例如 `早餐 8:30 80`）就是當天 30 分鐘的事件；沒有時間就是那天的全日事件。標題像 `早餐 80`，外幣像 `ChatGPT 20 USD (≈NT$650)`（約當台幣要等試算表算出來，再執行 `syncSpendCalendar`）。事件 id 存在「日曆事件」欄。你改了或刪了某一列之後，在編輯器執行 `syncSpendCalendar`，日曆才會跟著改。設定裡的「花費日曆」改成 `FALSE` 就不再寫入。這本日曆可以在 Google 日曆裡單獨隱藏。
 
 「標籤」表填名稱和起迄日期（含第一天和最後一天）。那段期間的帳會自動帶上標籤，表上也會加總約當台幣。側欄可以依關鍵字、分類或標籤搜尋所有年份，也可以列出某個標籤的明細和合計。
 
